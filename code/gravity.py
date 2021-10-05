@@ -22,24 +22,23 @@ FLAGS = flags.FLAGS
 
 
 class PoissonGravitationalModel(tf.Module):
-    dt = np.float64
     def __init__(self, name=None):
         super(PoissonGravitationalModel, self).__init__(name=name)
-        self.w = tf.Variable(tf.convert_to_tensor([0.7,0.9], dtype=self.dt),name='w')
-        self.c = tf.Variable(tf.convert_to_tensor([0,0], dtype=self.dt),name='c')
-        self.logits=tf.Variable(np.zeros(3,dtype=self.dt), name='logits')
-        self.lograte=tf.Variable(tf.convert_to_tensor(-10, dtype=self.dt),name='lograte')
+        self.w = tf.Variable(tf.convert_to_tensor([0.7], dtype=dt),name='w')
+        self.c = tf.Variable(tf.convert_to_tensor([0], dtype=dt),name='c')
+        self.logits=tf.Variable(np.zeros(2,dtype=dt), name='logits')
+        self.lograte=tf.Variable(tf.convert_to_tensor(-1, dtype=dt),name='lograte')
         #self.lograte=tf.convert_to_tensor(-10, dtype=dt)
     
 
     def __call__(self, x):
-        x=tf.convert_to_tensor(x, dtype=self.dt)
+        x=tf.convert_to_tensor(x, dtype=dt)
         ydist=tfd.Mixture(
-            cat=tfd.Categorical(logits=self.logits+tf.zeros((tf.shape(x)[0],1), dtype=self.dt)),
+            cat=tfd.Categorical(logits=self.logits+tf.zeros((tf.shape(x)[0],1), dtype=dt)),
             components=[
                 tfd.Poisson(log_rate=tf.zeros_like(x)+self.lograte), # approximate point mass at 0
                 tfd.Poisson(log_rate=self.w[0]*x+self.c[0]),
-                tfd.Poisson(log_rate=self.w[1]*x+self.c[1]),
+                #tfd.Poisson(log_rate=self.w[1]*x+self.c[1]),
             ]
         )
         return ydist
@@ -60,7 +59,8 @@ def interactions(df,bootstrap=False):
         M = v[...,np.newaxis]@v[np.newaxis,...]
         M-=np.diag(np.diag(M))
         C+= M
-    S = df.sum().to_numpy()[..., np.newaxis]
+    #S = df.sum().to_numpy()[..., np.newaxis]
+    S = A[(np.all(A!=1,axis=1)),:].sum(axis=0)[..., np.newaxis]
     return C,S
 
 class Estimator:
