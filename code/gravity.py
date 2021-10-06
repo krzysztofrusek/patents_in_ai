@@ -18,28 +18,40 @@ tfb = tfp.bijectors
 flags.DEFINE_integer("nboot", 400, 'bootstrap')
 flags.DEFINE_string("csv", "./do_modelu_grawitacyjnego.csv", "Input file")
 flags.DEFINE_string("out", "checkpoint", "Input file")
+flags.DEFINE_bool('others',False,'Czy kraje z poza UE')
+flags.DEFINE_bool('treinable0',True, "czy rozklad 0 kooperacji jest trenowalny")
 FLAGS = flags.FLAGS
 
 
 class PoissonGravitationalModel(tf.Module):
-    def __init__(self, name=None):
+    def __init__(self,trainable_lograte=True,nnz=1,dtype=np.float64, name=None):
+        '''
+
+        :param trainable_lograte: Czy rozklad braku interakcji jest trenowlany
+        :param nnz: ile skąłdowych w mieszance poza rozkaldem zerowym
+        :param dtype: typ dancyh
+        :param name: Opcjonalna nazwa modułu
+        '''
         super(PoissonGravitationalModel, self).__init__(name=name)
-        self.w = tf.Variable(tf.convert_to_tensor([0.7], dtype=dt),name='w')
-        self.c = tf.Variable(tf.convert_to_tensor([0], dtype=dt),name='c')
-        self.logits=tf.Variable(np.zeros(2,dtype=dt), name='logits')
-        self.lograte=tf.Variable(tf.convert_to_tensor(-1, dtype=dt),name='lograte')
-        #self.lograte=tf.convert_to_tensor(-10, dtype=dt)
+        dt = dtype
+        self.dt=dt
+        self.nnz = nnz
+        self.w = tf.Variable(tf.convert_to_tensor(nnz*[0.7], dtype=dt),name='w')
+        self.c = tf.Variable(tf.convert_to_tensor(nnz*[0], dtype=dt),name='c')
+        self.logits=tf.Variable(np.zeros(nnz+1,dtype=dt), name='logits')
+        if trainable_lograte:
+            self.lograte=tf.Variable(tf.convert_to_tensor(-1, dtype=dt),name='lograte')
+        else:
+            self.lograte=tf.convert_to_tensor(-10, dtype=dt)
     
 
     def __call__(self, x):
-        x=tf.convert_to_tensor(x, dtype=dt)
+        x=tf.convert_to_tensor(x, dtype=self.dt)
+        components = [tfd.Poisson(log_rate=tf.zeros_like(x)+self.lograte)]+ \
+                     [tfd.Poisson(log_rate=self.w[i]*x+self.c[i]) for i in range(self.nnz)]
         ydist=tfd.Mixture(
-            cat=tfd.Categorical(logits=self.logits+tf.zeros((tf.shape(x)[0],1), dtype=dt)),
-            components=[
-                tfd.Poisson(log_rate=tf.zeros_like(x)+self.lograte), # approximate point mass at 0
-                tfd.Poisson(log_rate=self.w[0]*x+self.c[0]),
-                #tfd.Poisson(log_rate=self.w[1]*x+self.c[1]),
-            ]
+            cat=tfd.Categorical(logits=self.logits+tf.zeros((tf.shape(x)[0],1), dtype=self.dt)),
+            components=components
         )
         return ydist
 
@@ -163,7 +175,7 @@ def main(_):
         e = Estimator(
             data=df,
             model=PoissonGravitationalModel(),
-            bootstrap=True
+            bootstrap=i>0
         )
         e.fit()
         e.save(dirname)
