@@ -79,7 +79,7 @@ def load_clean(path='../dane/clean.pickle'):
     with open(path,'br') as f:
         return pickle.load(f)
 
-def fractions_countries(df:pd.DataFrame):
+def fractions_countries(df:pd.DataFrame, with_others=True):
     others = tuples.Country('Others')
     lista_krajow=Unia + [others]
     kody_krajow=[]
@@ -90,7 +90,9 @@ def fractions_countries(df:pd.DataFrame):
             z[lista_krajow.index(kraj)] += 1.
             z /= z.sum()
         kody_krajow.append(z)
-    return pd.DataFrame(kody_krajow, columns=list(map(str,lista_krajow)))
+    if with_others:
+        return pd.DataFrame(kody_krajow, columns=list(map(str,lista_krajow)))
+    return pd.DataFrame(kody_krajow, columns=list(map(str, lista_krajow))).iloc[:,:-1]
 
 
 
