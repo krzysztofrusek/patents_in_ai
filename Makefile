@@ -25,3 +25,15 @@ to_plg: to_plg_data to_plg_code
 
 from_plg:
 	rsync -av --inplace --exclude '*.out' --exclude '*.err' '$(PLG_PATH)/checkpoint' plg/
+
+
+3comp_others:
+	python3 code/gravity.py \
+		--nboot 1 \
+		--pickle dane/clean.pickle \
+		--out gen \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--treinablezero
+

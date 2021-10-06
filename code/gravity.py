@@ -24,7 +24,9 @@ flags.DEFINE_string("out", "checkpoint", "Output dir")
 flags.DEFINE_bool('others',False,'Czy kraje z poza UE')
 flags.DEFINE_bool('treinablezero',True, "czy rozklad 0 kooperacji jest trenowalny")
 flags.DEFINE_integer('nnz',1, "Liczba niezerowych składowych mieszanki")
-flags.DEFINE_integer('feature_type',1)
+flags.DEFINE_string('feature_type','ALL','''ONLY_COOPERATION=1
+    INDIVIDUAL=2
+    ALL=3''')
 FLAGS = flags.FLAGS
 
 
@@ -41,7 +43,7 @@ class PoissonGravitationalModel(tf.Module):
         dt = dtype
         self.dt=dt
         self.nnz = nnz
-        self.w = tf.Variable(tf.convert_to_tensor(nnz*[0.7], dtype=dt),name='w')
+        self.w = tf.Variable(tf.convert_to_tensor(np.linspace(0.1,1.1,self.nnz, dtype=self.dt)),name='w')
         self.c = tf.Variable(tf.convert_to_tensor(nnz*[0], dtype=dt),name='c')
         self.logits=tf.Variable(np.zeros(nnz+1,dtype=dt), name='logits')
         if trainable_lograte:
@@ -128,12 +130,12 @@ class Estimator:
 
         Z = np.argmax(np.stack([c.prob(self.y[sidx]) for c in ydist.components],axis=1)*ydist.cat.probs_parameter(), axis=1)
         betas = self.model.betas()
-
+        cmap = 'viridis'
         plt.figure(figsize=(11,9))
         plt.scatter(self.x[sidx],np.log1p(self.y[sidx]), 
             alpha=0.8,
             c=betas[Z],
-            cmap='Greens'
+            cmap=cmap
             )
 
 
@@ -150,7 +152,7 @@ class Estimator:
         plt.xlabel(r'$\log(c_{i}c_{j}+1)$')
         plt.title("Model grawitacyjny relacji w funkcji patentów par krajów")
         if dirname:
-            plt.savefig(os.path.join(dirname,'pois_grav_oth.pdf'))
+            plt.savefig(os.path.join(dirname,'reg.pdf'))
 
 
         ydist = self.model(self.x)
@@ -165,13 +167,13 @@ class Estimator:
         In[self.flat_idx]=betas[Z]
         In[(self.flat_idx[1],self.flat_idx[0])]=betas[Z]
 
-        sns.heatmap(In,cmap='Greens',linewidths=0.2, linecolor='black')
+        sns.heatmap(In,cmap=cmap,linewidths=0.2, linecolor='black')
         ntick = self.df.shape[1]
         plt.xticks(ticks=np.arange(0,ntick)+0.5,labels=list(self.df.columns), rotation=90);
         plt.yticks(ticks=np.arange(0,ntick)+0.5,labels=list(self.df.columns), rotation=0);
         plt.gca().set_aspect('equal')
         if dirname:
-            plt.savefig(os.path.join(dirname,'grid_pois_grav_oth.pdf'))
+            plt.savefig(os.path.join(dirname,'grid.pdf'))
 
 
     def save(self, directory:str):
@@ -198,7 +200,8 @@ def main(_):
                 nnz=FLAGS.nnz,
                 trainable_lograte=FLAGS.treinablezero
             ),
-            bootstrap=i>0
+            bootstrap=i>0,
+            mass=CountryFeaturesType[FLAGS.feature_type]
         )
         e.fit()
         e.save(dirname)
