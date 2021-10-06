@@ -93,11 +93,11 @@ def interactions(df,bootstrap=False, features_type:CountryFeaturesType=CountryFe
 class Estimator:
     dt = np.float64
 
-    def __init__(self, data,model, bootstrap=True):
+    def __init__(self, data,model, mass:CountryFeaturesType,bootstrap=True):
 
         self.df = data
         self.flat_idx = np.triu_indices(self.df.shape[1],k = 1)
-        self.interaction_to_xy(*interactions(self.df,bootstrap))
+        self.interaction_to_xy(*interactions(self.df,bootstrap=bootstrap,features_type=mass))
         self.model = model
 
     def interaction_to_xy(self, C,S):
