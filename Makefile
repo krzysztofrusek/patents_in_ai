@@ -28,10 +28,11 @@ from_plg:
 
 
 3comp_others:
+	mkdir -p gen/$@
 	python3 code/gravity.py \
 		--nboot 1 \
 		--pickle dane/clean.pickle \
-		--out gen \
+		--out gen/$@ \
 		--others \
 		--nnz 2 \
 		--feature_type ALL \

@@ -132,7 +132,7 @@ class Estimator:
         betas = self.model.betas()
         cmap = 'viridis'
         plt.figure(figsize=(11,9))
-        plt.scatter(self.x[sidx],np.log1p(self.y[sidx]), 
+        plt.scatter(self.x[sidx],self.y[sidx],
             alpha=0.8,
             c=betas[Z],
             cmap=cmap
@@ -144,11 +144,16 @@ class Estimator:
         #         plt.text(x_,np.log1p(y_),str(set(self.df.columns[[i1,i2]])), fontsize=4)
 
 
-        for c in ydist.components:
-            plt.plot(self.x[sidx],np.log1p(c.mean()))
+        for i,c in enumerate(ydist.components):
+            plt.plot(self.x[sidx],c.mean(),label=f'$E C_{{ij}}|Z={i}$')
+        plt.legend()
         #plt.ylim(-0.1,25)
-        #plt.yscale('log')
-        plt.ylabel(r'$\log(\lambda_{ij}+1)$')
+        log1p_scale = mpl.scale.FuncScale(plt.gca(),(np.log1p,np.expm1))
+        plt.yscale(log1p_scale)
+        #plt.ylabel(r'$\log(\lambda_{ij}+1)$')
+        plt.ylabel('number of interactions')
+        plt.yticks([0,1,2,3,4,5,10,25,50,100,250,500,1000])
+
         plt.xlabel(r'$\log(c_{i}c_{j}+1)$')
         plt.title("Model grawitacyjny relacji w funkcji patentów par krajów")
         if dirname:
