@@ -2,9 +2,12 @@ import os
 import numpy as np
 import pandas as pd
 from absl import flags, app, logging
-
+from enum import Enum
 
 import matplotlib as mpl
+
+import data
+
 mpl.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -15,11 +18,13 @@ import tensorflow_probability as tfp
 tfd = tfp.distributions
 tfb = tfp.bijectors
 
-flags.DEFINE_integer("nboot", 400, 'bootstrap')
-flags.DEFINE_string("csv", "./do_modelu_grawitacyjnego.csv", "Input file")
-flags.DEFINE_string("out", "checkpoint", "Input file")
+flags.DEFINE_integer("nboot", 1, 'bootstrap')
+flags.DEFINE_string("pickle", "dane/clean.pickle", "Input file")
+flags.DEFINE_string("out", "checkpoint", "Output dir")
 flags.DEFINE_bool('others',False,'Czy kraje z poza UE')
-flags.DEFINE_bool('treinable0',True, "czy rozklad 0 kooperacji jest trenowalny")
+flags.DEFINE_bool('treinablezero',True, "czy rozklad 0 kooperacji jest trenowalny")
+flags.DEFINE_integer('nnz',1, "Liczba niezerowych składowych mieszanki")
+flags.DEFINE_integer('feature_type',1)
 FLAGS = flags.FLAGS
 
 
@@ -59,8 +64,12 @@ class PoissonGravitationalModel(tf.Module):
         return np.concatenate([np.array([0]),self.w.numpy()])
 
 
+class CountryFeaturesType(Enum):
+    ONLY_COOPERATION=1
+    INDIVIDUAL=2
+    ALL=3
 
-def interactions(df,bootstrap=False):
+def interactions(df,bootstrap=False, features_type:CountryFeaturesType=CountryFeaturesType.INDIVIDUAL):
     if bootstrap:
         df = df.sample(df.shape[0], replace=True)
     A=np.array(df)
@@ -71,8 +80,14 @@ def interactions(df,bootstrap=False):
         M = v[...,np.newaxis]@v[np.newaxis,...]
         M-=np.diag(np.diag(M))
         C+= M
-    #S = df.sum().to_numpy()[..., np.newaxis]
-    S = A[(np.all(A!=1,axis=1)),:].sum(axis=0)[..., np.newaxis]
+
+    if features_type == CountryFeaturesType.ALL:
+        S = df.sum().to_numpy()[..., np.newaxis]
+    elif features_type == CountryFeaturesType.ONLY_COOPERATION:
+        S = A[(np.all(A!=1,axis=1)),:].sum(axis=0)[..., np.newaxis]
+    elif features_type == CountryFeaturesType.INDIVIDUAL:
+        S = A[np.any(A==1, axis=1),:].sum(axis=0)[..., np.newaxis]
+
     return C,S
 
 class Estimator:
@@ -107,7 +122,7 @@ class Estimator:
             )
         return losses
 
-    def plot(self):
+    def plot(self, dirname=None):
         sidx = np.argsort(self.x)
         ydist = self.model(self.x[sidx])
 
@@ -134,7 +149,8 @@ class Estimator:
         plt.ylabel(r'$\log(\lambda_{ij}+1)$')
         plt.xlabel(r'$\log(c_{i}c_{j}+1)$')
         plt.title("Model grawitacyjny relacji w funkcji patentów par krajów")
-        plt.savefig('gen/pois_grav_oth.pdf')
+        if dirname:
+            plt.savefig(os.path.join(dirname,'pois_grav_oth.pdf'))
 
 
         ydist = self.model(self.x)
@@ -150,10 +166,13 @@ class Estimator:
         In[(self.flat_idx[1],self.flat_idx[0])]=betas[Z]
 
         sns.heatmap(In,cmap='Greens',linewidths=0.2, linecolor='black')
-        plt.xticks(ticks=np.arange(0,29)+0.5,labels=list(self.df.columns), rotation=90);
-        plt.yticks(ticks=np.arange(0,29)+0.5,labels=list(self.df.columns), rotation=0);
+        ntick = self.df.shape[1]
+        plt.xticks(ticks=np.arange(0,ntick)+0.5,labels=list(self.df.columns), rotation=90);
+        plt.yticks(ticks=np.arange(0,ntick)+0.5,labels=list(self.df.columns), rotation=0);
         plt.gca().set_aspect('equal')
-        plt.savefig('gen/grid_pois_grav_oth.pdf')
+        if dirname:
+            plt.savefig(os.path.join(dirname,'grid_pois_grav_oth.pdf'))
+
 
     def save(self, directory:str):
         checkpoint = tf.train.Checkpoint(model=self.model)
@@ -164,7 +183,8 @@ class Estimator:
 
 def main(_):
 
-    df = pd.read_csv(FLAGS.csv,index_col=0)
+    clean_df = data.load_clean(FLAGS.pickle)
+    df = data.fractions_countries(clean_df, with_others=FLAGS.others)
 
     for i in range(FLAGS.nboot):
         try:
@@ -174,11 +194,16 @@ def main(_):
             pass
         e = Estimator(
             data=df,
-            model=PoissonGravitationalModel(),
+            model=PoissonGravitationalModel(
+                nnz=FLAGS.nnz,
+                trainable_lograte=FLAGS.treinablezero
+            ),
             bootstrap=i>0
         )
         e.fit()
         e.save(dirname)
+        e.plot(dirname)
+    return 0
 
 
 
