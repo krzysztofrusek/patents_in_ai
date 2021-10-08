@@ -1,3 +1,4 @@
+import networkx as nx
 import numpy as np
 from matplotlib.pyplot import cla
 import pandas as pd
@@ -94,6 +95,66 @@ def fractions_countries(df:pd.DataFrame, with_others=True):
         return pd.DataFrame(kody_krajow, columns=list(map(str,lista_krajow)))
     return pd.DataFrame(kody_krajow, columns=list(map(str, lista_krajow))).iloc[:,:-1]
 
+
+def graph(df:pd.DataFrame, cpc_level=1)->nx.Graph:
+    edges=[]
+    for row in df.itertuples():
+        p = tuples.Patent(id=row.publication,
+                          t=row.application_date,
+                          i=row.Index)
+        for c in row.countries:
+            edges.append((p, c))
+        for cpc in row.cpc:
+            edges.append((p, cpc.at_level(cpc_level)))
+
+    G = nx.Graph(edges)
+    return G
+
+def ai_cpc():
+    dodatkowecpc = '''G06N5/003
+    G06N5/006
+    G06N5/02
+    G06N5/022
+    G06N5/025
+    G06N5/027
+    G06N5/04
+    G06N5/00
+    G06N5/041
+    G06N5/042
+    G06N5/043
+    G06N5/045
+    G06N5/046
+    G06N5/047
+    G06N5/048
+    G06N7/005
+    G06N7/02
+    G06N7/00
+    G06N7/023
+    G06N7/026
+    G06N7/04
+    G06N7/043
+    G06N7/046
+    G06N7/06
+    G06N7/08
+    G06N20/10
+    G06N20/20
+    G06N20/00'''.split('\n')
+    CPC_AI = ['A61B5/7267', 'G01N33/0034', 'G06F19/24', 'G10H2250/151', 'H04L2025/03464', 'B29C66/965',
+              'G01N2201/1296', 'G06F19/707', 'G10H2250/311', 'H04N21/4662', 'B29C2945/76979', 'G01S7/417',
+              'G06F2207/4824', 'G10K2210/3024', 'H04N21/4663', 'B60G2600/1876', 'G05B13/027', 'G06K7/1482',
+              'G10K2210/3038', 'H04N21/4665', 'B60G2600/1878', 'G05B13/0275', 'G06N3/004', 'G10L25/30',
+              'H04N21/4666', 'B60G2600/1879', 'G05B13/028', 'G06N3/02', 'G11B20/10518', 'H04Q2213/054',
+              'E21B2041/0028', 'G05B13/0285', 'G06N3/12', 'H01J2237/30427', 'H04Q2213/13343', 'F02D41/1405',
+              'G05B13/029', 'H02P21/0014', 'H04Q2213/343', 'F03D7/046', 'G05B13/0295',
+              'H02P23/0018', 'H04R25/507', 'F05B2270/707', 'G05B2219/33002', 'H03H2017/0208',
+              'F05B2270/709', 'G05D1/0088', 'G06N99/005', 'H03H2222/04',
+              'F05D2270/707', 'G06F11/1476', 'G06T3/4046', 'H04L25/0254', 'F05D2270/709',
+              'G06F11/2257', 'G06T9/002', 'H04L25/03165', 'F16H2061/0081', 'G06F11/2263', 'G06T2207/20081',
+              'H04L41/16', 'F16H2061/0084', 'G06F15/18', 'G06T2207/20084', 'H04L45/08', 'G01N29/4481',
+              'G06F17/16', 'G08B29/186', 'H04L2012/5686','Y10S128/924', 'Y10S128/925'] + dodatkowecpc
+    CPC_AI_ = [cpc[:4] + ' ' + cpc[4:] for cpc in CPC_AI]
+    CPC_AI_O = [tuples.CPC.parse(cpc) for cpc in CPC_AI_]
+    return  CPC_AI_O
 
 
 if __name__ == '__main__':

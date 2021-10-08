@@ -1,6 +1,8 @@
 import re
 from typing import NamedTuple
 
+import numpy as np
+
 
 class Country(NamedTuple):
     name:str
@@ -28,38 +30,8 @@ class CPC(NamedTuple):
         return CPC(*p.match(l).groups())
 
 
+class Patent(NamedTuple):
+    t: np.datetime64
+    id: str
+    i:int
 
-class PatentNode(NamedTuple):
-    year: int
-    id: int
-
-    def label(self):
-        return str(self.id)
-
-    def color(self):
-        return 'red'
-
-
-class CountryNode(NamedTuple):
-    name: str
-
-    def label(self):
-        return self.name
-
-    def color(self):
-        return 'blue'
-
-
-class CPCNode(NamedTuple):
-    section: str
-    class_: str
-    subclass: str
-
-    def __str__(self):
-        return f'{self.section}{self.class_}{self.subclass}'
-
-    def label(self):
-        return str(self)
-
-    def color(self):
-        return 'green'
