@@ -107,10 +107,12 @@ class Estimator:
         sst = S@S.T
         sst_flat = sst[self.flat_idx]
 
-        x=np.log1p(sst_flat).astype(self.dt)
+        x=sst_flat.astype(self.dt)
         y=flatc.astype(self.dt)
 
-        self.x,self.y = x,y
+        where_x, = np.where(x)
+        self.x,self.y = np.log(x[where_x]),y[where_x]
+        self.flat_idx = tuple(fi[where_x] for fi in self.flat_idx)
     
     @tf.function(jit_compile=True)
     def loss_fn(self):
@@ -154,7 +156,7 @@ class Estimator:
         plt.ylabel('number of interactions')
         plt.yticks([0,1,2,3,4,5,10,25,50,100,250,500,1000])
 
-        plt.xlabel(r'$\log(c_{i}c_{j}+1)$')
+        plt.xlabel(r'$\log(c_{i}c_{j})$')
         plt.title("Model grawitacyjny relacji w funkcji patentów par krajów")
         if dirname:
             plt.savefig(os.path.join(dirname,'reg.pdf'))
