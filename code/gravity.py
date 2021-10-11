@@ -27,6 +27,7 @@ flags.DEFINE_integer('nnz',1, "Liczba niezerowych składowych mieszanki")
 flags.DEFINE_string('feature_type','ALL','''ONLY_COOPERATION=1
     INDIVIDUAL=2
     ALL=3''')
+flags.DEFINE_bool('loo',False,"Wykonanie leave one out crossvalidation")
 FLAGS = flags.FLAGS
 
 
@@ -148,13 +149,7 @@ class Estimator:
                 label=[str(set(self.df.columns[[self.flat_idx[0][si],self.flat_idx[1][si]]])) for si in sidx]
             )
         )
-        # for i1,i2,x_,y_ in zip(*flat_idx,x,y):
-        #     if y_ >0:
-        #         plt.text(x_,np.log1p(y_),str(set(self.df.columns[[i1,i2]])), fontsize=4)
 
-        #ax = plt.gca()
-        #colormap = plt.get_cmap(cmap)
-        #ax.set_prop_cycle(color=[colormap(k) for k in range(len(ydist.components))])
 
         for i,c in enumerate(ydist.components):
             plt.plot(self.x[sidx],c.mean(),label=f'$E C_{{ij}}|Z={i}$', color=cmap(betas[i]))
@@ -199,6 +194,9 @@ class Estimator:
     def save(self, directory:str):
         checkpoint = tf.train.Checkpoint(model=self.model)
         checkpoint.write(os.path.join(directory,self.__class__.__name__))
+    def load(self,path:str):
+        checkpoint = tf.train.Checkpoint(model=self.model)
+        checkpoint.read(os.path.join(path, self.__class__.__name__))
 
     
 
