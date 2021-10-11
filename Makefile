@@ -16,10 +16,11 @@ PLG_PATH = plgkrusek@prometheus.cyfronet.pl:/net/scratch/people/plgkrusek/patent
 
 
 to_plg_data:
-	rsync -av --inplace do_modelu_grawitacyjnego.csv $(PLG_PATH)/
+	#rsync -av --inplace do_modelu_grawitacyjnego.csv $(PLG_PATH)/
+	rsync -av dane $(PLG_PATH)/
 	
 to_plg_code:
-	rsync -av --inplace *.sh code  $(PLG_PATH)
+	rsync -av --inplace *.sh code Makefile $(PLG_PATH)
 
 to_plg: to_plg_data to_plg_code
 

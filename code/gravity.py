@@ -117,15 +117,16 @@ class Estimator:
     
     @tf.function(jit_compile=True)
     def loss_fn(self):
-            return -tf.reduce_sum(self.model(self.x).log_prob(self.y))
+            return -tf.reduce_mean(self.model(self.x).log_prob(self.y))
         
     def fit(self):
         losses = tfp.math.minimize( self.loss_fn, 
-            num_steps=5000, 
+            num_steps=2000,
             optimizer=tf.optimizers.Adam(learning_rate=0.08),
             trainable_variables = self.model.trainable_variables
             )
         return losses
+
 
     def plot(self, dirname=None):
         sidx = np.argsort(self.x)
@@ -156,7 +157,10 @@ class Estimator:
         plt.legend()
         #plt.ylim(-0.1,25)
         log1p_scale = mpl.scale.FuncScale(plt.gca(),(np.log1p,np.expm1))
-        plt.yscale(log1p_scale)
+        #plgrid
+        #if  mpl.__version__ == '3.3.3':
+        plt.yscale('function', functions=(np.log1p,np.expm1))
+        #plt.yscale(log1p_scale)
         #plt.ylabel(r'$\log(\lambda_{ij}+1)$')
         plt.ylabel('number of interactions')
         plt.yticks([0,1,2,3,4,5,10,25,50,100,250,500,1000])
@@ -198,6 +202,7 @@ class Estimator:
         checkpoint = tf.train.Checkpoint(model=self.model)
         checkpoint.read(os.path.join(path, self.__class__.__name__))
 
+
     
 
 
@@ -212,6 +217,39 @@ def main(_):
             os.makedirs(dirname)
         except:
             pass
+        # if FLAGS.loo:
+        #     loo_stats = []
+        #     for row_id in df.index:
+        #         logging.info(row_id)
+        #         train_df = df.drop(labels=row_id)
+        #         test_df = df.loc[[row_id],:]
+        #         # 0 patentów w evaluacji
+        #         if test_df.sum().sum() < 0.001:
+        #             continue
+        #         e = Estimator(
+        #             data=train_df,
+        #             model=PoissonGravitationalModel(
+        #                 nnz=FLAGS.nnz,
+        #                 trainable_lograte=FLAGS.treinablezero
+        #             ),
+        #             bootstrap=i > 0,
+        #             mass=CountryFeaturesType[FLAGS.feature_type]
+        #         )
+        #         e.fit()
+        #         evaluator = Estimator(
+        #             model=e.model,
+        #             data=test_df,
+        #             bootstrap=False,
+        #             mass=CountryFeaturesType[FLAGS.feature_type]
+        #         )
+        #         loo_stats.append(dict(
+        #             index=row_id,
+        #             train_loss = e.loss_fn().numpy(),
+        #             test_loss = evaluator.loss_fn().numpy()
+        #         ))
+        #
+        #     pass
+
         e = Estimator(
             data=df,
             model=PoissonGravitationalModel(
