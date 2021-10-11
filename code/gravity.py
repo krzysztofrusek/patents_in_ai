@@ -132,7 +132,7 @@ class Estimator:
 
         Z = np.argmax(np.stack([c.prob(self.y[sidx]) for c in ydist.components],axis=1)*ydist.cat.probs_parameter(), axis=1)
         betas = self.model.betas()
-        cmap = 'viridis'
+        cmap = plt.get_cmap('viridis')
         plt.figure(figsize=(11,9))
         plt.scatter(self.x[sidx],self.y[sidx],
             alpha=0.8,
@@ -140,14 +140,24 @@ class Estimator:
             cmap=cmap
             )
 
-
+        stats = pd.DataFrame(
+            dict(
+                x=self.x[sidx],
+                y=self.y[sidx],
+                Z=Z,
+                label=[str(set(self.df.columns[[self.flat_idx[0][si],self.flat_idx[1][si]]])) for si in sidx]
+            )
+        )
         # for i1,i2,x_,y_ in zip(*flat_idx,x,y):
         #     if y_ >0:
         #         plt.text(x_,np.log1p(y_),str(set(self.df.columns[[i1,i2]])), fontsize=4)
 
+        #ax = plt.gca()
+        #colormap = plt.get_cmap(cmap)
+        #ax.set_prop_cycle(color=[colormap(k) for k in range(len(ydist.components))])
 
         for i,c in enumerate(ydist.components):
-            plt.plot(self.x[sidx],c.mean(),label=f'$E C_{{ij}}|Z={i}$')
+            plt.plot(self.x[sidx],c.mean(),label=f'$E C_{{ij}}|Z={i}$', color=cmap(betas[i]))
         plt.legend()
         #plt.ylim(-0.1,25)
         log1p_scale = mpl.scale.FuncScale(plt.gca(),(np.log1p,np.expm1))
@@ -158,8 +168,11 @@ class Estimator:
 
         plt.xlabel(r'$\log(c_{i}c_{j})$')
         plt.title("Model grawitacyjny relacji w funkcji patentów par krajów")
+
+
         if dirname:
             plt.savefig(os.path.join(dirname,'reg.pdf'))
+            stats.to_csv(os.path.join(dirname,'summary.csv'))
 
 
         ydist = self.model(self.x)
@@ -168,7 +181,7 @@ class Estimator:
 
 
         plt.figure(figsize=(9,11))
-        In = np.zeros(2*[self.df.shape[1]])
+        In = np.zeros(2*[self.df.shape[1]])+np.nan
         betas = self.model.betas()
 
         In[self.flat_idx]=betas[Z]
@@ -181,7 +194,7 @@ class Estimator:
         plt.gca().set_aspect('equal')
         if dirname:
             plt.savefig(os.path.join(dirname,'grid.pdf'))
-
+        return stats
 
     def save(self, directory:str):
         checkpoint = tf.train.Checkpoint(model=self.model)
