@@ -21,10 +21,10 @@ module load plgrid/tools/python/3.9
 mkdir -p gen/bootstrap
 
 python3 code/gravity.py \
-		--nboot 500 \
+		--nboot 100 \
 		--pickle dane/clean.pickle \
 		--out gen/bootstrap \
 		--others \
 		--nnz 2 \
 		--feature_type ALL \
-		--treinablezero
+		--notreinablezero

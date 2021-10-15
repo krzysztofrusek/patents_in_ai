@@ -37,5 +37,5 @@ from_plg:
 		--others \
 		--nnz 2 \
 		--feature_type ALL \
-		--treinablezero
+		--notreinablezero
 

@@ -65,6 +65,17 @@ class PoissonGravitationalModel(tf.Module):
 
     def betas(self):
         return np.concatenate([np.array([0]),self.w.numpy()])
+        
+    def Z(self,x,y):
+        ydist = self(x)
+        return np.argmax(np.stack([c.prob(y) for c in ydist.components],axis=1)*ydist.cat.probs_parameter(), axis=1)
+
+    def Z_dist(self, x, y):
+        ydist = self(x)
+        lp = tf.stack([c.log_prob(y) for c in ydist.components], axis=1) + ydist.cat.logits_parameter()
+        return tfd.Categorical(logits=lp)
+
+
 
 
 class CountryFeaturesType(Enum):
@@ -121,7 +132,7 @@ class Estimator:
         
     def fit(self):
         losses = tfp.math.minimize( self.loss_fn, 
-            num_steps=2000,
+            num_steps=3000,
             optimizer=tf.optimizers.Adam(learning_rate=0.08),
             trainable_variables = self.model.trainable_variables
             )
@@ -129,6 +140,7 @@ class Estimator:
 
 
     def plot(self, dirname=None):
+        f = plt.figure(figsize=(9, 11))
         sidx = np.argsort(self.x)
         ydist = self.model(self.x[sidx])
 
@@ -178,8 +190,8 @@ class Estimator:
 
         Z = np.argmax(np.stack([c.prob(self.y) for c in ydist.components],axis=1)*ydist.cat.probs_parameter(), axis=1)
 
-
-        plt.figure(figsize=(9,11))
+        plt.close(f)
+        f = plt.figure(figsize=(9,11))
         In = np.zeros(2*[self.df.shape[1]])+np.nan
         betas = self.model.betas()
 
@@ -193,6 +205,8 @@ class Estimator:
         plt.gca().set_aspect('equal')
         if dirname:
             plt.savefig(os.path.join(dirname,'grid.pdf'))
+
+        plt.close(f)
         return stats
 
     def save(self, directory:str):
