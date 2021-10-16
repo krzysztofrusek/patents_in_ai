@@ -1,7 +1,7 @@
 import os
 import pickle
 from dataclasses import dataclass
-from typing import Any, List, Tuple
+from typing import Any, List, Tuple, NamedTuple
 
 import pandas as pd
 from absl import flags, app, logging
@@ -27,6 +27,37 @@ flags.DEFINE_string('tag', "samples.pkl", "Name of the run and output file")
 
 
 Root = tfd.JointDistributionCoroutine.Root
+
+class PoissonMixtureRegression(NamedTuple):
+    w:tf.Tensor
+    c:tf.Tensor
+    c0:tf.Tensor
+    logits:tf.Tensor
+
+    def __call__(self, x):
+        log_rate_nnz = x@self.w+self.c
+        log_rate0 = tf.broadcast_to(self.c0,log_rate_nnz.shape[:-1]+[1])
+        log_rate = tf.concat([log_rate0, log_rate_nnz], axis=-1)
+
+        return tfd.Independent( distribution=tfd.MixtureSameFamily(
+                    mixture_distribution=tfd.Categorical(logits=tf.broadcast_to(self.logits, log_rate.shape)),
+                    components_distribution=tfd.Poisson(log_rate=log_rate)
+            ),
+            reinterpreted_batch_ndims=1,
+            name='y'
+        )
+
+    @staticmethod
+    def prior(nnz:int,dtype:tf.DType):
+        tensor = lambda tx: tf.convert_to_tensor(tx, dtype=dtype)
+        return PoissonMixtureRegression(
+            w = tfd.Sample(tfd.Normal(loc=tensor(0.5), scale=tensor(1.)), (1,nnz),name='w'),
+            c = tfd.Sample(tfd.Normal(loc=tensor(-8.), scale=tensor(3.)), (1,nnz),name='c'),
+            c0 = tfd.Sample(tfd.Normal(loc=tensor(-3.), scale=tensor(3.)), (1, 1), name='c0'),
+            logits = tfd.Sample(tfd.Normal(loc=tensor(0), scale=tensor(2.)),(1,nnz+1),name='logits')
+        )
+
+
 
 
 def poisson_mixture_regression(x:Any,nnz:int=2, ):
