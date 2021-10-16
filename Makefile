@@ -39,3 +39,16 @@ from_plg:
 		--feature_type ALL \
 		--notreinablezero
 
+mcmc:
+	mkdir -p gen/$@
+	python3 code/bayes.py \
+		--pickle dane/clean.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--num_results 512 \
+		--num_chains 32 \
+		--num_adaptation 1000 \
+		--num_burnin_steps 2000
+

@@ -1,3 +1,4 @@
+import os
 import pickle
 from dataclasses import dataclass
 from typing import Any, List, Tuple
@@ -158,7 +159,7 @@ def main(_):
 
     samples, traces = run()
     print('R-hat diagnostics: ', tfp.mcmc.potential_scale_reduction(samples))
-    with open(FLAGS.tag, 'wb') as f:
+    with open(os.path.join(FLAGS.out,FLAGS.tag), 'wb') as f:
         pickle.dump([t.numpy() for t in samples], f)
 
 
