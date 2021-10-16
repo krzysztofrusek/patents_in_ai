@@ -1,3 +1,4 @@
+import pickle
 from dataclasses import dataclass
 from typing import Any, List, Tuple
 
@@ -16,6 +17,14 @@ import numpy as np
 import gravity
 FLAGS = flags.FLAGS
 
+flags.DEFINE_integer("num_results", 5, "...")
+flags.DEFINE_integer("num_chains", 2, "...")
+flags.DEFINE_integer("num_adaptation", 10, "...")
+flags.DEFINE_integer("num_burnin_steps", 2, "...")
+#flags.DEFINE_string("datafile",'Dane2019_koreta_miernika.xlsx',"data excell")
+flags.DEFINE_string('tag', "samples.pkl", "Name of the run and output file")
+
+
 Root = tfd.JointDistributionCoroutine.Root
 
 
@@ -25,7 +34,7 @@ def poisson_mixture_regression(x:Any,nnz:int=2, ):
         _x = tf.convert_to_tensor(x)
         tensor = lambda tx: tf.convert_to_tensor(tx, dtype=_x.dtype)
         w = yield  Root(tfd.Sample(tfd.Normal(loc=tensor(0.5), scale=tensor(1.)), (1,nnz),name='w'))
-        c = yield Root(tfd.Sample(tfd.Normal(loc=tensor(-8.), scale=tensor(3.)), (1,2),name='c'))
+        c = yield Root(tfd.Sample(tfd.Normal(loc=tensor(-8.), scale=tensor(3.)), (1,nnz),name='c'))
         c0 = yield Root(tfd.Sample(tfd.Normal(loc=tensor(-3.), scale=tensor(3.)), (1, 1), name='c0'))
         logits = yield Root(tfd.Sample(tfd.Normal(loc=tensor(0), scale=tensor(2.)),(1,nnz+1),name='logits'))
 
@@ -92,16 +101,67 @@ def main(_):
     df = data.fractions_countries(clean_df, with_others=FLAGS.others)
     dataset = Dataset.from_pandas(df,gravity.CountryFeaturesType.ALL)
     _x = dataset.x[..., np.newaxis]
-    n_batch =4
+
+    num_adaptation=FLAGS.num_adaptation
+    num_chains=FLAGS.num_chains
+    num_results=FLAGS.num_results
+    num_burnin_steps=FLAGS.num_burnin_steps
+
+    n_batch = num_chains
+    nnz = FLAGS.nnz
+
     model = poisson_mixture_regression(
         np.broadcast_to(_x,[n_batch]+list(_x.shape)),
-        2)
+        nnz)
 
-    s = model.sample(n_batch)
-    @tf.function(jit_compile=True)
-    def f(x):
-        return model.log_prob(x)
-    print(f(s))
+    _y = np.broadcast_to(dataset.y,[n_batch]+list(dataset.y.shape))
+
+    def target_log_prob(w,c,c0,logits):
+        return model.log_prob(w,c,c0,logits, _y)
+
+
+    hmc = tfp.mcmc.NoUTurnSampler(
+        target_log_prob_fn=target_log_prob,
+        step_size=[.05,0.1,0.1,0.05])
+
+    hmc = tfp.mcmc.TransformedTransitionKernel(
+        inner_kernel=hmc,
+        bijector=[
+            tfp.bijectors.Identity(),
+            tfp.bijectors.Identity(),
+            tfp.bijectors.Identity(),
+            tfp.bijectors.Identity()
+        ])
+
+    hmc = tfp.mcmc.DualAveragingStepSizeAdaptation(
+        inner_kernel=hmc,
+        num_adaptation_steps=num_adaptation,
+        target_accept_prob=.8)
+
+
+    initial_state = [
+            0.8*tf.ones([num_chains,1, nnz], name='init_w', dtype=tf.float64),
+            -8.*tf.ones([num_chains,1,nnz], name='init_c', dtype=tf.float64),
+            -3.+tf.zeros([num_chains,1,1], name='init_c0', dtype=tf.float64),
+            tf.zeros([num_chains,1,nnz+1], name='init_logits', dtype=tf.float64),
+        ]
+
+    @tf.function(autograph=False, jit_compile=True)
+    def run():
+        return tfp.mcmc.sample_chain(
+            num_results=num_results,
+            current_state=initial_state,
+            kernel=hmc,
+            num_burnin_steps=num_burnin_steps,
+            trace_fn=lambda _, kr: kr
+        )
+
+    samples, traces = run()
+    print('R-hat diagnostics: ', tfp.mcmc.potential_scale_reduction(samples))
+    with open(FLAGS.tag, 'wb') as f:
+        pickle.dump([t.numpy() for t in samples], f)
+
+
     return 0
 
 if __name__ == '__main__':
