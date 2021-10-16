@@ -62,5 +62,5 @@ mcmc2:
 		--feature_type ALL \
 		--num_results 4000 \
 		--num_chains 16 \
-		--num_adaptation 10000 \
-		--num_burnin_steps 10000
+		--num_adaptation 20000 \
+		--num_burnin_steps 20000
