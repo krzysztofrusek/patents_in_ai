@@ -50,5 +50,24 @@ class TupleModelTestCase(unittest.TestCase):
         sample_model(x)
         ...
 
+    def test_jdc(self):
+        n = 4
+        x = np.random.normal(loc=10, scale=2, size=(n, 351, 1))
+        Root = tfd.JointDistributionCoroutine.Root
+        def makejdc():
+            @tfd.JointDistributionCoroutine
+            def model():
+                params=[]
+                for p in bayes.PoissonMixtureRegression.prior(2,tf.float64):
+                    param = yield Root(p)
+                    params.append(param)
+                yield bayes.PoissonMixtureRegression(*params)(x)
+            return model
+
+        model = makejdc()
+        model.log_prob(model.sample())
+        ...
+
+
 if __name__ == '__main__':
     unittest.main()

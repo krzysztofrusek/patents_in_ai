@@ -47,8 +47,20 @@ mcmc:
 		--others \
 		--nnz 2 \
 		--feature_type ALL \
-		--num_results 2000 \
-		--num_chains 32 \
+		--num_results 4000 \
+		--num_chains 16 \
+		--num_adaptation 50000 \
+		--num_burnin_steps 90000
+# Małe c0
+mcmc2:
+	mkdir -p gen/$@
+	python3 code/bayes.py \
+		--pickle dane/clean.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--num_results 4000 \
+		--num_chains 16 \
 		--num_adaptation 10000 \
-		--num_burnin_steps 20000
-
+		--num_burnin_steps 10000
