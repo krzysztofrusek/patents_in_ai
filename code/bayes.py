@@ -172,7 +172,7 @@ def main(_):
 
 
     initial_state = [
-            tf.broadcast_to([0.5,1.],[num_chains,1,2], name='init_w'),
+            tf.broadcast_to(tf.convert_to_tensor([0.5,1.],dtype=tf.float64),[num_chains,1,2], name='init_w'),
             -8.*tf.ones([num_chains,1,nnz], name='init_c', dtype=tf.float64),
             -8.+tf.zeros([num_chains,1,1], name='init_c0', dtype=tf.float64),
             tf.zeros([num_chains,1,nnz+1], name='init_logits', dtype=tf.float64),
