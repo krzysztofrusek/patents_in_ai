@@ -23,11 +23,11 @@ def poisson_mixture_regression(x:Any,nnz:int=2, ):
     @tfd.JointDistributionCoroutine
     def model():
         _x = tf.convert_to_tensor(x)
-
-        w = yield  Root(tfd.Sample(tfd.Normal(loc=0.5, scale=1.),(1,nnz),name='w'))
-        c = yield Root(tfd.Sample(tfd.Normal(loc=-8., scale=3.), (1,2),name='c'))
-        c0 = yield Root(tfd.Sample(tfd.Normal(loc=-3., scale=3.), (1, 1), name='c0'))
-        logits = yield Root(tfd.Sample(tfd.Normal(loc=0, scale=2.),(1,nnz+1),name='logits'))
+        tensor = lambda tx: tf.convert_to_tensor(tx, dtype=_x.dtype)
+        w = yield  Root(tfd.Sample(tfd.Normal(loc=tensor(0.5), scale=tensor(1.)), (1,nnz),name='w'))
+        c = yield Root(tfd.Sample(tfd.Normal(loc=tensor(-8.), scale=tensor(3.)), (1,2),name='c'))
+        c0 = yield Root(tfd.Sample(tfd.Normal(loc=tensor(-3.), scale=tensor(3.)), (1, 1), name='c0'))
+        logits = yield Root(tfd.Sample(tfd.Normal(loc=tensor(0), scale=tensor(2.)),(1,nnz+1),name='logits'))
 
         log_rate_nnz = _x@w+c
         log_rate0 = tf.broadcast_to(c0,log_rate_nnz.shape[:-1]+[1])
@@ -91,7 +91,7 @@ def main(_):
     clean_df = data.load_clean(FLAGS.pickle)
     df = data.fractions_countries(clean_df, with_others=FLAGS.others)
     dataset = Dataset.from_pandas(df,gravity.CountryFeaturesType.ALL)
-    _x = dataset.x.astype(np.float32)[..., np.newaxis]
+    _x = dataset.x[..., np.newaxis]
     n_batch =4
     model = poisson_mixture_regression(
         np.broadcast_to(_x,[n_batch]+list(_x.shape)),
