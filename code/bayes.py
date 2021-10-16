@@ -123,7 +123,7 @@ def main(_):
 
     hmc = tfp.mcmc.NoUTurnSampler(
         target_log_prob_fn=target_log_prob,
-        step_size=[.05,0.1,0.1,0.05])
+        step_size=[.01,0.05,0.05,0.01])
 
     hmc = tfp.mcmc.TransformedTransitionKernel(
         inner_kernel=hmc,

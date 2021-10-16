@@ -47,8 +47,8 @@ mcmc:
 		--others \
 		--nnz 2 \
 		--feature_type ALL \
-		--num_results 512 \
+		--num_results 2000 \
 		--num_chains 32 \
-		--num_adaptation 1000 \
-		--num_burnin_steps 2000
+		--num_adaptation 10000 \
+		--num_burnin_steps 20000
 
