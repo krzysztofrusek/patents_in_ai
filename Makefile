@@ -64,3 +64,17 @@ mcmc2:
 		--num_chains 16 \
 		--num_adaptation 20000 \
 		--num_burnin_steps 20000
+
+# Lepsza inicjalizacja w
+mcmc3:
+	mkdir -p gen/$@
+	python3 code/bayes.py \
+		--pickle dane/clean.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--num_results 4000 \
+		--num_chains 16 \
+		--num_adaptation 16000 \
+		--num_burnin_steps 16000

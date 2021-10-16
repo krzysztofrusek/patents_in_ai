@@ -154,7 +154,7 @@ def main(_):
 
     hmc = tfp.mcmc.NoUTurnSampler(
         target_log_prob_fn=target_log_prob,
-        step_size=[.03,0.05,0.05,0.02])
+        step_size=[.03,0.05,0.05,0.05])
 
     hmc = tfp.mcmc.TransformedTransitionKernel(
         inner_kernel=hmc,
@@ -172,9 +172,9 @@ def main(_):
 
 
     initial_state = [
-            0.8*tf.ones([num_chains,1, nnz], name='init_w', dtype=tf.float64),
+            tf.broadcast_to([0.5,1.],[num_chains,1,2], name='init_w'),
             -8.*tf.ones([num_chains,1,nnz], name='init_c', dtype=tf.float64),
-            -3.+tf.zeros([num_chains,1,1], name='init_c0', dtype=tf.float64),
+            -8.+tf.zeros([num_chains,1,1], name='init_c0', dtype=tf.float64),
             tf.zeros([num_chains,1,nnz+1], name='init_logits', dtype=tf.float64),
         ]
 
