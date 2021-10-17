@@ -34,7 +34,7 @@ class PoissonMixtureRegression(NamedTuple):
     c0:tf.Tensor
     logits:tf.Tensor
 
-    def __call__(self, x):
+    def __call__(self, x:tf.Tensor)->tfd.Distribution:
         log_rate_nnz = x@self.w+self.c
         log_rate0 = tf.broadcast_to(self.c0,log_rate_nnz.shape[:-1]+[1])
         log_rate = tf.concat([log_rate0, log_rate_nnz], axis=-1)
@@ -46,6 +46,17 @@ class PoissonMixtureRegression(NamedTuple):
             reinterpreted_batch_ndims=1,
             name='y'
         )
+    def Z(self,x:tf.Tensor,y:tf.Tensor)->tfd.Distribution:
+        '''
+        Rozklad warunkowy `P(Z|x,y,theta)` na element mieszanki
+        :param x:
+        :param y:
+        :return:
+        '''
+        ydist = self(x)
+        inner_dist = ydist.distribution
+        lp = inner_dist.components_distribution.log_prob(y) + inner_dist.mixture_distribution.logits_parameter()
+        return tfd.Categorical(logits=lp)
 
     @staticmethod
     def prior(nnz:int,dtype:tf.DType):

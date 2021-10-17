@@ -49,6 +49,15 @@ class TupleModelTestCase(unittest.TestCase):
         x = np.random.normal(loc=10, scale=2, size=(n,351, 1))
         sample_model(x)
         ...
+    def test_z(self):
+        prior = bayes.PoissonMixtureRegression.prior(2, tf.float64)
+
+        n = 4
+        sample_model = bayes.PoissonMixtureRegression(*map(partial(tfd.Distribution.sample,sample_shape=n), prior))
+        x = np.random.normal(loc=10, scale=2, size=(n,351, 1))
+        sample_model.Z(x,tf.round(x))
+
+
 
     def test_jdc(self):
         n = 4
