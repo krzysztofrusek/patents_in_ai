@@ -70,7 +70,8 @@ def make_clean_df(df:pd.DataFrame):
         application_date=make_date_series(df['Application date']),
         countries=make_country_series(df['Applicant country of residence']),
         cpc=make_cpc_series(df['CPC (invention information)'],df['CPC (additional information)']),
-        publication=df['Publication']
+        publication=df['Publication'],
+        publication_date = make_date_series(df['Publication date'])
     )
     return pd.DataFrame(d)
 
