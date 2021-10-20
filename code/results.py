@@ -33,12 +33,15 @@ class BayesResults:
                     x='value',
                     col='variable',
                     col_wrap=4,
+                    height = 1.4,
+                    aspect = 1.6,
                     common_bins=False,
                     kde=True,
-                    facet_kws=dict(sharex=False, sharey=False)
+                    facet_kws=dict(sharex=False, sharey=True)
                     )
+        plt.tight_layout()
         if save_to:
-            plt.savefig(save_to)
+            plt.savefig(os.path.join(save_to,'params.pdf'))
         else:
             plt.show()
         return
@@ -107,7 +110,11 @@ class BayesResults:
         In[dataset.flat_idx]=z
         In[(dataset.flat_idx[1],dataset.flat_idx[0])]=z
 
-        ax = sns.heatmap(In, cmap=palette, linewidths=0.2, linecolor='black')
+        annot = np.zeros_like(In)
+        annot[dataset.flat_idx]=dataset.x
+        annot[(dataset.flat_idx[1],dataset.flat_idx[0])]=dataset.x
+
+        ax = sns.heatmap(In, cmap=palette, linewidths=0.03, linecolor='black',annot=annot,fmt='.1f',annot_kws=dict(fontsize=3.5))
         colorbar = ax.collections[0].colorbar
         colorbar.set_ticks([1/3,1,5/3])
         colorbar.set_ticklabels(['0', '1', '2'])
@@ -115,10 +122,11 @@ class BayesResults:
         ntick = df.shape[1]
         plt.xticks(ticks=np.arange(0,ntick)+0.5,labels=list(df.columns), rotation=90, fontsize=5);
         plt.yticks(ticks=np.arange(0,ntick)+0.5,labels=list(df.columns), rotation=0, fontsize=5);
-        plt.gca().set_aspect('equal')
+        #plt.gca().set_aspect('equal')
         plt.tight_layout()
         if save_to:
             plt.savefig(os.path.join(save_to,'grid.pdf'))
+            plt.savefig(os.path.join(save_to, 'grid.svg'))
         else:
             plt.show()
 
@@ -137,12 +145,12 @@ def main(_):
             'xtick.labelsize':7,
             'ytick.labelsize': 7
             },
-        font_scale=0.8
+        font_scale=1.0
     )
 
     bayes_results = BayesResults(FLAGS.mcmcpickle)
     bayes_results.plot_regression(FLAGS.paperdir)
-    #bayes_results.plot_params()
+    bayes_results.plot_params(FLAGS.paperdir)
     return 0
 
 if __name__ == '__main__':
