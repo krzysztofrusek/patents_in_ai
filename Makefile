@@ -78,3 +78,14 @@ mcmc3:
 		--num_chains 16 \
 		--num_adaptation 16000 \
 		--num_burnin_steps 16000
+
+paper:
+	mkdir -p gen/$@
+	python3 code/results.py \
+		--pickle dane/clean.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--paperdir gen/$@ \
+		--mcmcpickle gen/mcmc3/samples.pkl
