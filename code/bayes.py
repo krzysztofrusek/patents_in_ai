@@ -36,7 +36,7 @@ class PoissonMixtureRegression(NamedTuple):
 
     def __call__(self, x:tf.Tensor)->tfd.Distribution:
         log_rate_nnz = x@self.w+self.c
-        log_rate0 = tf.broadcast_to(self.c0,log_rate_nnz.shape[:-1]+[1])
+        log_rate0 = tf.broadcast_to(self.c0,log_rate_nnz.shape[:-1]+(1,))
         log_rate = tf.concat([log_rate0, log_rate_nnz], axis=-1)
 
         return tfd.Independent( distribution=tfd.MixtureSameFamily(
