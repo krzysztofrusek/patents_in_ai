@@ -1,6 +1,7 @@
 import os.path
 import pickle
 
+import networkx as nx
 import pandas as pd
 from matplotlib import pyplot as plt
 import matplotlib as mpl
@@ -77,7 +78,7 @@ class BayesResults:
                                    ))
 
 
-        palette=sns.color_palette("YlOrRd",3)
+        palette=sns.color_palette("flare",3)
 
         sns.scatterplot(data=xyz_df, x='x',y='y', hue='z', style='z', palette=palette[:3])
         sort_idx = np.argsort(dataset.x)
@@ -132,6 +133,73 @@ class BayesResults:
 
         return
 
+class PatentCooperationGraph:
+    def __init__(self):
+        self.clean_df = data.load_clean(FLAGS.pickle)
+        self.fractions = data.fractions_countries(self.clean_df, with_others=True)
+    def plot(self,save_to=None):
+
+        C,S = gravity.interactions(self.fractions,bootstrap=False,features_type=gravity.CountryFeaturesType.ALL)
+        G=nx.Graph(C)
+        pos = nx.circular_layout(G)
+
+        nodes_df = pd.DataFrame(pos.values(),columns=['x','y'],index=self.fractions.columns)
+        nodes_df['s']=np.where(S<1,np.nan,S)
+
+        palette = 'YlOrRd'
+        palette='flare'
+
+        ax=sns.scatterplot(data=nodes_df,
+                           x='x',
+                           y='y',
+                           size='s',
+                           size_norm=mpl.colors.LogNorm(),
+                           sizes=(0.26,260),
+                           hue='s',
+                           hue_norm = mpl.colors.LogNorm(),
+                           palette=palette,
+                           zorder=1
+                           )
+
+
+        def edge_gen():
+            for n1, n2, c in G.edges.data('weight'):
+                yield dict(x=pos[n1][0],y=pos[n1][1],c=c,edge=(self.fractions.columns[n1],self.fractions.columns[n2]))
+                yield dict(x=pos[n2][0], y=pos[n2][1], c=c,
+                           edge=(self.fractions.columns[n1], self.fractions.columns[n2]))
+
+        edge_df = pd.DataFrame(list(edge_gen()))
+
+        ax=sns.lineplot(data=edge_df,
+                        x='x',
+                        y='y',
+                        size='c',
+                        units='edge',
+                        size_norm=mpl.colors.LogNorm(),
+                        sizes=(0.2,2),
+                        hue='c',
+                        hue_norm=mpl.colors.LogNorm(),
+                        estimator=None,
+                        palette=palette,
+                        alpha=0.8,
+                        zorder=0)
+        ax.set_aspect('equal')
+        #sns.despine(ax=ax,left=True, right=True, top=True, bottom=True)
+        nx.draw_networkx_labels(G,pos, dict(enumerate(self.fractions.columns)),font_size=6)
+        plt.axis(False)
+        plt.legend(bbox_to_anchor=(-.1, 1.00),title="Patents", prop={'size': 9}, borderpad=1)
+        plt.tight_layout()
+
+        if save_to:
+            plt.savefig(os.path.join(save_to,'graph.pdf'))
+            plt.close()
+        else:
+            plt.show()
+
+        return
+
+
+
 
 def main(_):
     mpl.use('MacOSX')
@@ -148,6 +216,11 @@ def main(_):
         font_scale=1.0
     )
 
+    with sns.plotting_context(rc={
+            'figure.figsize': (4.7, 4.7),
+            },font_scale=0.8):
+        PatentCooperationGraph().plot(FLAGS.paperdir)
+    return 0
     bayes_results = BayesResults(FLAGS.mcmcpickle)
     bayes_results.plot_regression(FLAGS.paperdir)
     bayes_results.plot_params(FLAGS.paperdir)
