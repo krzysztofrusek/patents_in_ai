@@ -24,7 +24,7 @@ flags.DEFINE_integer("num_adaptation", 10, "...")
 flags.DEFINE_integer("num_burnin_steps", 2, "...")
 #flags.DEFINE_string("datafile",'Dane2019_koreta_miernika.xlsx',"data excell")
 flags.DEFINE_string('tag', "samples.pkl", "Name of the run and output file")
-
+flags.DEFINE_integer('toyear', 2021, "Run analysis up to year")
 
 Root = tfd.JointDistributionCoroutine.Root
 
@@ -141,7 +141,9 @@ class Dataset:
 
 def main(_):
     clean_df = data.load_clean(FLAGS.pickle)
-    df = data.fractions_countries(clean_df, with_others=FLAGS.others)
+    clean_df_t = clean_df[clean_df.publication_date.dt.year <=FLAGS.toyear]
+
+    df = data.fractions_countries(clean_df_t, with_others=FLAGS.others)
     dataset = Dataset.from_pandas(df,gravity.CountryFeaturesType.ALL)
     _x = dataset.x[..., np.newaxis]
 
