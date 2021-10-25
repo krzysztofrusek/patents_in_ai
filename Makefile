@@ -91,7 +91,8 @@ test_mcmc:
 		--num_chains 2 \
 		--num_adaptation 16 \
 		--num_burnin_steps 16 \
-		--priorsample gen/mcmc3/samples.pkl
+		--priorsample gen/mcmc3/samples.pkl \
+		--toyear 2015
 
 paper:
 	mkdir -p gen/$@
@@ -103,3 +104,96 @@ paper:
 		--feature_type ALL \
 		--paperdir gen/$@ \
 		--mcmcpickle gen/mcmc3/samples.pkl
+
+
+# ANlizy czasowe
+
+
+y2015:
+	mkdir -p gen/$@
+	python3 code/bayes.py \
+		--pickle dane/clean.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--num_results 4000 \
+		--num_chains 16 \
+		--num_adaptation 16000 \
+		--num_burnin_steps 16000 \
+		--toyear 2015
+
+
+y2016: y2015
+	mkdir -p gen/$@
+	python3 code/bayes.py \
+		--pickle dane/clean.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--num_results 4000 \
+		--num_chains 16 \
+		--num_adaptation 16000 \
+		--num_burnin_steps 16000 \
+		--priorsample gen/y2015/samples.pkl \
+		--toyear 2016
+
+y2017: y2016
+	mkdir -p gen/$@
+	python3 code/bayes.py \
+		--pickle dane/clean.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--num_results 4000 \
+		--num_chains 16 \
+		--num_adaptation 16000 \
+		--num_burnin_steps 16000 \
+		--priorsample gen/y2016/samples.pkl \
+		--toyear 2017
+y2018: y2017
+	mkdir -p gen/$@
+	python3 code/bayes.py \
+		--pickle dane/clean.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--num_results 4000 \
+		--num_chains 16 \
+		--num_adaptation 16000 \
+		--num_burnin_steps 16000 \
+		--priorsample gen/y2017/samples.pkl \
+		--toyear 2018
+
+y2019: y2018
+	mkdir -p gen/$@
+	python3 code/bayes.py \
+		--pickle dane/clean.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--num_results 4000 \
+		--num_chains 16 \
+		--num_adaptation 16000 \
+		--num_burnin_steps 16000 \
+		--priorsample gen/y2018/samples.pkl \
+		--toyear 2019
+
+y2020: y2019
+	mkdir -p gen/$@
+	python3 code/bayes.py \
+		--pickle dane/clean.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--num_results 4000 \
+		--num_chains 16 \
+		--num_adaptation 16000 \
+		--num_burnin_steps 16000 \
+		--priorsample gen/y2019/samples.pkl \
+		--toyear 2020
