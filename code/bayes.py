@@ -1,3 +1,4 @@
+import functools
 import os
 import pickle
 from dataclasses import dataclass
@@ -25,6 +26,7 @@ flags.DEFINE_integer("num_burnin_steps", 2, "...")
 #flags.DEFINE_string("datafile",'Dane2019_koreta_miernika.xlsx',"data excell")
 flags.DEFINE_string('tag', "samples.pkl", "Name of the run and output file")
 flags.DEFINE_integer('toyear', 2021, "Run analysis up to year")
+flags.DEFINE_string('priorsample', None, "prior samples from other experiment")
 
 Root = tfd.JointDistributionCoroutine.Root
 
@@ -69,17 +71,34 @@ class PoissonMixtureRegression(NamedTuple):
         )
 
 
+def load_mcmc(path:str)->np.array:
+    if path:
+        with open(path, 'br') as f:
+            samples = pickle.load(f)
+
+        return tf.nest.map_structure(lambda x: np.reshape(x,(-1,)+x.shape[2:]), samples)
+    return None
 
 
-def poisson_mixture_regression(x:Any,nnz:int=2, ):
+def poisson_mixture_regression(x:Any,nnz:int=2,prior_samples:Any=None ):
     @tfd.JointDistributionCoroutine
     def model():
         _x = tf.convert_to_tensor(x)
         tensor = lambda tx: tf.convert_to_tensor(tx, dtype=_x.dtype)
-        w = yield  Root(tfd.Sample(tfd.Normal(loc=tensor(0.5), scale=tensor(0.5)), (1,nnz),name='w'))
-        c = yield Root(tfd.Sample(tfd.Normal(loc=tensor(-8.), scale=tensor(3.)), (1,nnz),name='c'))
-        c0 = yield Root(tfd.Sample(tfd.Normal(loc=tensor(-8.), scale=tensor(3.)), (1, 1), name='c0'))
-        logits = yield Root(tfd.Sample(tfd.Normal(loc=tensor(0), scale=tensor(2.)),(1,nnz+1),name='logits'))
+        if prior_samples:
+            mean_ax0 = functools.partial(np.mean, axis=0)
+            std_ax0 = functools.partial(np.std, axis=0)
+            means = tf.nest.map_structure(mean_ax0, prior_samples)
+            stds  = tf.nest.map_structure(std_ax0, prior_samples)
+            w = yield Root(tfd.Independent(tfd.Normal(loc=tensor(means[0]), scale=tensor(stds[0])), 2, name='w'))
+            c = yield Root(tfd.Independent(tfd.Normal(loc=tensor(means[1]), scale=tensor(stds[1])), 2, name='c'))
+            c0 = yield Root(tfd.Independent(tfd.Normal(loc=tensor(means[2]), scale=tensor(stds[2])), 2, name='c0'))
+            logits = yield Root(tfd.Independent(tfd.Normal(loc=tensor(means[3]), scale=tensor(stds[3])), 2, name='logits'))
+        else:
+            w = yield  Root(tfd.Sample(tfd.Normal(loc=tensor(0.5), scale=tensor(0.5)), (1,nnz),name='w'))
+            c = yield Root(tfd.Sample(tfd.Normal(loc=tensor(-8.), scale=tensor(3.)), (1,nnz),name='c'))
+            c0 = yield Root(tfd.Sample(tfd.Normal(loc=tensor(-8.), scale=tensor(3.)), (1, 1), name='c0'))
+            logits = yield Root(tfd.Sample(tfd.Normal(loc=tensor(0), scale=tensor(2.)),(1,nnz+1),name='logits'))
 
         log_rate_nnz = _x@w+c
         log_rate0 = tf.broadcast_to(c0,log_rate_nnz.shape[:-1]+[1])
@@ -157,7 +176,9 @@ def main(_):
 
     model = poisson_mixture_regression(
         np.broadcast_to(_x,[n_batch]+list(_x.shape)),
-        nnz)
+        nnz,
+        prior_samples=load_mcmc(FLAGS.priorsample)
+    )
 
     _y = np.broadcast_to(dataset.y,[n_batch]+list(dataset.y.shape))
 

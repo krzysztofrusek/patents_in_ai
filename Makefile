@@ -79,6 +79,20 @@ mcmc3:
 		--num_adaptation 16000 \
 		--num_burnin_steps 16000
 
+test_mcmc:
+	mkdir -p gen/$@
+	python3 code/bayes.py \
+		--pickle dane/clean.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--num_results 4 \
+		--num_chains 2 \
+		--num_adaptation 16 \
+		--num_burnin_steps 16 \
+		--priorsample gen/mcmc3/samples.pkl
+
 paper:
 	mkdir -p gen/$@
 	python3 code/results.py \
