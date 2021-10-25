@@ -78,7 +78,7 @@ class BayesResults:
                                    ))
 
 
-        palette=sns.color_palette("flare",3)
+        palette=sns.color_palette("viridis",3)
 
         sns.scatterplot(data=xyz_df, x='x',y='y', hue='z', style='z', palette=palette[:3])
         sort_idx = np.argsort(dataset.x)
@@ -141,20 +141,21 @@ class PatentCooperationGraph:
 
         C,S = gravity.interactions(self.fractions,bootstrap=False,features_type=gravity.CountryFeaturesType.ALL)
         G=nx.Graph(C)
-        pos = nx.circular_layout(G)
+        pos = nx.circular_layout(G,scale=400)
+        #pos = nx.spectral_layout(G, scale=100,weight=None)
 
         nodes_df = pd.DataFrame(pos.values(),columns=['x','y'],index=self.fractions.columns)
         nodes_df['s']=np.where(S<1,np.nan,S)
 
         palette = 'YlOrRd'
-        palette='flare'
+        palette='viridis'
 
         ax=sns.scatterplot(data=nodes_df,
                            x='x',
                            y='y',
                            size='s',
                            size_norm=mpl.colors.LogNorm(),
-                           sizes=(0.26,260),
+                           sizes=(100,400),
                            hue='s',
                            hue_norm = mpl.colors.LogNorm(),
                            palette=palette,
@@ -176,7 +177,7 @@ class PatentCooperationGraph:
                         size='c',
                         units='edge',
                         size_norm=mpl.colors.LogNorm(),
-                        sizes=(0.2,2),
+                        sizes=(1,3),
                         hue='c',
                         hue_norm=mpl.colors.LogNorm(),
                         estimator=None,
@@ -187,7 +188,7 @@ class PatentCooperationGraph:
         #sns.despine(ax=ax,left=True, right=True, top=True, bottom=True)
         nx.draw_networkx_labels(G,pos, dict(enumerate(self.fractions.columns)),font_size=6)
         plt.axis(False)
-        plt.legend(bbox_to_anchor=(-.1, 1.00),title="Patents", prop={'size': 9}, borderpad=1)
+        plt.legend(bbox_to_anchor=(-.05, 1.00),title="Patents", prop={'size': 9}, borderpad=1)
         plt.tight_layout()
 
         if save_to:
@@ -220,7 +221,7 @@ def main(_):
             'figure.figsize': (4.7, 4.7),
             },font_scale=0.8):
         PatentCooperationGraph().plot(FLAGS.paperdir)
-    return 0
+    #return 0
     bayes_results = BayesResults(FLAGS.mcmcpickle)
     bayes_results.plot_regression(FLAGS.paperdir)
     bayes_results.plot_params(FLAGS.paperdir)
