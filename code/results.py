@@ -138,14 +138,14 @@ class PatentCooperationGraph:
         self.clean_df = data.load_clean(FLAGS.pickle)
         self.fractions = data.fractions_countries(self.clean_df, with_others=True)
     def plot(self,save_to=None):
-
+        plt.figure(figsize=(4.7,4.7))
         C,S = gravity.interactions(self.fractions,bootstrap=False,features_type=gravity.CountryFeaturesType.ALL)
         G=nx.Graph(C)
-        pos = nx.circular_layout(G,scale=400)
+        pos = nx.circular_layout(G,center=(1,1))
         #pos = nx.spectral_layout(G, scale=100,weight=None)
 
         nodes_df = pd.DataFrame(pos.values(),columns=['x','y'],index=self.fractions.columns)
-        nodes_df['s']=np.where(S<1,np.nan,S)
+        nodes_df['s']=np.where(S<0.001,np.nan,S)
 
         palette = 'YlOrRd'
         palette='viridis'
@@ -186,9 +186,26 @@ class PatentCooperationGraph:
                         zorder=0)
         ax.set_aspect('equal')
         #sns.despine(ax=ax,left=True, right=True, top=True, bottom=True)
-        nx.draw_networkx_labels(G,pos, dict(enumerate(self.fractions.columns)),font_size=6)
+        # nx.draw_networkx_labels(G,pos, dict(enumerate(self.fractions.columns)),font_size=6,
+        #                         font_color='gray'
+        #                         )
+
+        for n in G.nodes():
+            plt.text(pos[n][0],pos[n][1],s=self.fractions.columns[n],
+                     horizontalalignment='center',
+                     verticalalignment='center',
+                     fontdict={
+                'size': 6,
+                'color':('black' if S[n]>100 else "white")
+            })
         plt.axis(False)
-        plt.legend(bbox_to_anchor=(-.05, 1.00),title="Patents", prop={'size': 9}, borderpad=1)
+
+        plt.xlim(-0.1,2.3)
+        plt.ylim(-0.1,2.1)
+        plt.legend(loc='upper right',
+                   title="Patents",
+                   prop={'size': 6})
+
         plt.tight_layout()
 
         if save_to:
@@ -221,7 +238,7 @@ def main(_):
             'figure.figsize': (4.7, 4.7),
             },font_scale=0.8):
         PatentCooperationGraph().plot(FLAGS.paperdir)
-    #return 0
+    return 0
     bayes_results = BayesResults(FLAGS.mcmcpickle)
     bayes_results.plot_regression(FLAGS.paperdir)
     bayes_results.plot_params(FLAGS.paperdir)
