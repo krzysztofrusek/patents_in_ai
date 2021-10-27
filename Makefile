@@ -197,3 +197,52 @@ y2020: y2019
 		--num_burnin_steps 16000 \
 		--priorsample gen/y2019/samples.pkl \
 		--toyear 2020
+
+paper2020:
+	mkdir -p gen/$@
+	python3 code/results.py \
+		--pickle dane/clean.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--paperdir gen/$@ \
+		--mcmcpickle gen/y2020/samples.pkl \
+		--toyear 2020
+
+paper2019:
+	mkdir -p gen/$@
+	python3 code/results.py \
+		--pickle dane/clean.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--paperdir gen/$@ \
+		--mcmcpickle gen/y2019/samples.pkl \
+		--toyear 2019
+paper2018:
+	mkdir -p gen/$@
+	python3 code/results.py \
+		--pickle dane/clean.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--paperdir gen/$@ \
+		--mcmcpickle gen/y2018/samples.pkl \
+		--toyear 2018
+paper2017:
+	mkdir -p gen/$@
+	python3 code/results.py \
+		--pickle dane/clean.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--paperdir gen/$@ \
+		--mcmcpickle gen/y2017/samples.pkl \
+		--toyear 2017
+
+time_evolution: paper2017 paper2018 paper2019 paper2020
+	echo "time_evolution"

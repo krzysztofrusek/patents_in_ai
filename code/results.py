@@ -1,6 +1,10 @@
 import os.path
 import pickle
 
+import data
+import gravity
+import bayes
+
 import networkx as nx
 import pandas as pd
 from matplotlib import pyplot as plt
@@ -8,11 +12,6 @@ import matplotlib as mpl
 import seaborn as sns
 import numpy as np
 from absl import flags, app, logging
-
-import bayes
-
-import data
-import gravity
 
 FLAGS= flags.FLAGS
 flags.DEFINE_string("mcmcpickle", "../gen/mcmc3/samples.pkl", "Input file")
@@ -49,6 +48,7 @@ class BayesResults:
 
     def plot_regression(self,save_to=None):
         clean_df = data.load_clean(FLAGS.pickle)
+        clean_df = clean_df[clean_df.publication_date.dt.year <= FLAGS.toyear]
         df = data.fractions_countries(clean_df, with_others=True)
         dataset = bayes.Dataset.from_pandas(df, gravity.CountryFeaturesType.ALL)
         _x = dataset.x[..., np.newaxis]
@@ -220,7 +220,10 @@ class PatentCooperationGraph:
 
 
 def main(_):
-    mpl.use('MacOSX')
+    try:
+        mpl.use('MacOSX')
+    except:
+        mpl.use('Agg')
     sns.set_theme(
         context='paper',
         style='whitegrid',
@@ -238,7 +241,7 @@ def main(_):
             'figure.figsize': (4.7, 4.7),
             },font_scale=0.8):
         PatentCooperationGraph().plot(FLAGS.paperdir)
-    return 0
+    #return 0
     bayes_results = BayesResults(FLAGS.mcmcpickle)
     bayes_results.plot_regression(FLAGS.paperdir)
     bayes_results.plot_params(FLAGS.paperdir)
