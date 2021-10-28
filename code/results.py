@@ -210,6 +210,9 @@ class PatentCooperationGraph:
 
         if save_to:
             plt.savefig(os.path.join(save_to,'graph.pdf'))
+            Ccopy = C.copy()
+            Cdf = pd.DataFrame(np.fill_diagonal(C,S),columns=self.fractions.columns,index=self.fractions.columns)
+            Cdf.to_csv(os.path.join(save_to, 'graph.csv'))
             plt.close()
         else:
             plt.show()

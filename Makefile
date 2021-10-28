@@ -109,7 +109,51 @@ paper:
 # ANlizy czasowe
 
 
-y2015:
+#y2015:
+#	mkdir -p gen/$@
+#	python3 code/bayes.py \
+#		--pickle dane/clean.pickle \
+#		--out gen/$@ \
+#		--others \
+#		--nnz 2 \
+#		--feature_type ALL \
+#		--num_results 4000 \
+#		--num_chains 16 \
+#		--num_adaptation 16000 \
+#		--num_burnin_steps 16000 \
+#		--toyear 2015
+#
+#
+#y2016: y2015
+#	mkdir -p gen/$@
+#	python3 code/bayes.py \
+#		--pickle dane/clean.pickle \
+#		--out gen/$@ \
+#		--others \
+#		--nnz 2 \
+#		--feature_type ALL \
+#		--num_results 4000 \
+#		--num_chains 16 \
+#		--num_adaptation 16000 \
+#		--num_burnin_steps 16000 \
+#		--priorsample gen/y2015/samples.pkl \
+#		--toyear 2016
+#
+#y2017: y2016
+#	mkdir -p gen/$@
+#	python3 code/bayes.py \
+#		--pickle dane/clean.pickle \
+#		--out gen/$@ \
+#		--others \
+#		--nnz 2 \
+#		--feature_type ALL \
+#		--num_results 4000 \
+#		--num_chains 16 \
+#		--num_adaptation 16000 \
+#		--num_burnin_steps 16000 \
+#		--priorsample gen/y2016/samples.pkl \
+#		--toyear 2017
+y2018:
 	mkdir -p gen/$@
 	python3 code/bayes.py \
 		--pickle dane/clean.pickle \
@@ -121,51 +165,6 @@ y2015:
 		--num_chains 16 \
 		--num_adaptation 16000 \
 		--num_burnin_steps 16000 \
-		--toyear 2015
-
-
-y2016: y2015
-	mkdir -p gen/$@
-	python3 code/bayes.py \
-		--pickle dane/clean.pickle \
-		--out gen/$@ \
-		--others \
-		--nnz 2 \
-		--feature_type ALL \
-		--num_results 4000 \
-		--num_chains 16 \
-		--num_adaptation 16000 \
-		--num_burnin_steps 16000 \
-		--priorsample gen/y2015/samples.pkl \
-		--toyear 2016
-
-y2017: y2016
-	mkdir -p gen/$@
-	python3 code/bayes.py \
-		--pickle dane/clean.pickle \
-		--out gen/$@ \
-		--others \
-		--nnz 2 \
-		--feature_type ALL \
-		--num_results 4000 \
-		--num_chains 16 \
-		--num_adaptation 16000 \
-		--num_burnin_steps 16000 \
-		--priorsample gen/y2016/samples.pkl \
-		--toyear 2017
-y2018: y2017
-	mkdir -p gen/$@
-	python3 code/bayes.py \
-		--pickle dane/clean.pickle \
-		--out gen/$@ \
-		--others \
-		--nnz 2 \
-		--feature_type ALL \
-		--num_results 4000 \
-		--num_chains 16 \
-		--num_adaptation 16000 \
-		--num_burnin_steps 16000 \
-		--priorsample gen/y2017/samples.pkl \
 		--toyear 2018
 
 y2019: y2018
@@ -244,5 +243,5 @@ paper2017:
 		--mcmcpickle gen/y2017/samples.pkl \
 		--toyear 2017
 
-time_evolution: paper2017 paper2018 paper2019 paper2020
+time_evolution: paper2018 paper2019 paper2020
 	echo "time_evolution"
