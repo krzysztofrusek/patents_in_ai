@@ -1,0 +1,140 @@
+from jax.config import config
+config.update("jax_enable_x64", True)
+
+import numpy as np
+from matplotlib import pyplot as plt
+import pandas as pd
+import jax
+import jax.numpy as jnp
+import jax.scipy.optimize as opt
+
+from typing import NamedTuple
+
+from absl import flags, app, logging
+from tensorflow_probability.substrates import jax as tfp
+tfd = tfp.distributions
+
+import data
+
+flags.DEFINE_string("pickle", "../dane/clean.pickle", "Input file")
+
+FLAGS= flags.FLAGS
+
+#%%
+
+class LogisticGrowthV3(NamedTuple):
+    '''
+    https://en.wikipedia.org/wiki/Logistic_function
+
+    '''
+    a:jnp.array
+    loc:jnp.array
+    scale:jnp.array
+    mix:jnp.array
+
+    @property
+    def dist(self):
+        dist = tfd.MixtureSameFamily(
+            mixture_distribution=tfd.Categorical(logits=self.mix),
+            components_distribution=tfd.Logistic(loc=self.loc, scale=self.scale)
+        )
+        return dist
+
+
+    def __call__(self, x:jnp.array)->jnp.array:
+
+        return self.a*self.dist.cdf(x)
+
+    def pack(self)->jnp.array:
+        return jnp.concatenate(self)
+
+    @classmethod
+    def unpack(cls,dense:jnp.array)->'LogisticGrowthV3':
+        return cls(*jnp.split(dense,(1,3,5)))
+
+
+#%%
+clean_df = data.load_clean("dane/clean.pickle")
+day_events = clean_df.publication_date.sort_values().to_numpy().astype('datetime64[D]')
+#day_events = day_events[50:]
+#day_events = day_events[50:]
+events=day_events.astype(np.float64)
+#%%
+counts = np.cumsum(jnp.ones_like(events))
+plt.plot(events,counts)
+plt.show()
+#%%
+x = (events-7000)/13000
+y= counts/10000
+plt.plot(x,y)
+plt.show()
+#%%
+model = LogisticGrowthV3(
+    a=jnp.array([1.]),
+    loc=jnp.array([0.4,0.9]),
+    scale=jnp.array([0.4,0.1]),
+    mix = jnp.array([-0.5,2.])
+)
+t = np.linspace(np.min(x),np.max(x),500)
+hat = model(t)
+plt.plot(x,y)
+plt.plot(t,hat)
+plt.show()
+
+#%%
+@jax.jit
+def fit(x:jnp.array,y:jnp.array,initial:LogisticGrowthV3):
+    def nll(theta:jnp.array)->jnp.array:
+        m = LogisticGrowthV3.unpack(theta)
+        ll = jnp.mean(jnp.square(y-m(x))) # remove dim of size 1
+        return ll
+
+    return opt.minimize(nll,
+                        x0=initial.pack(),
+                        method="BFGS",
+                        options=dict(maxiter=500000, line_search_maxiter=1000)
+                        )
+#%%
+opt_result=fit(x[:-400],y[:-400],model)
+fitted = LogisticGrowthV3.unpack(opt_result.x)
+#%%
+hat = fitted(t)
+plt.plot(x,y)
+plt.plot(t,hat)
+plt.show()
+#%%
+f = jax.jit(jax.vmap(jax.grad(lambda x: fitted(x)[0] )))
+
+plt.plot(t,f(t))
+plt.show()
+
+#%%
+td = (t*13000+7000).astype('datetime64[D]')
+alexnet_date=np.datetime64('2012-09-10')
+for i in range(2):
+
+    plt.plot(td,10000*fitted.a*fitted.dist.components_distribution[i].prob(t))
+
+plt.axvline(alexnet_date,linestyle=':',color='k')
+
+
+plt.show()
+
+
+#%%
+
+#events = events[:-2000]/1000
+#events = events[5000:]/1000
+
+model = LogisticGrowthV3(
+    a=20000,
+    loc=jnp.array([14e3,20e3]),
+    scale=jnp.array([5e3,1e3]),
+    mix = jnp.array([-0.5,2.])
+)
+
+t = np.linspace(8e3,20e3,500)
+hat = model(t)
+plt.plot(events,counts)
+plt.plot(t,hat)
+plt.show()

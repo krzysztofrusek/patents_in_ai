@@ -11,6 +11,8 @@ import jax.scipy.optimize as opt
 from typing import NamedTuple
 
 from absl import flags, app, logging
+from tensorflow_probability.substrates import jax as tfp
+tfd = tfp.distributions
 
 import data
 
@@ -90,6 +92,29 @@ def fit2(events:jnp.array,initial:LogisticGrowthV2,t0:float, T:float):
                         )
 
 
+class LogisticGrowthV3(NamedTuple):
+    '''
+    https://en.wikipedia.org/wiki/Logistic_function
+
+    '''
+    a:jnp.array
+    loc:jnp.array
+    scale:jnp.array
+    mix:jnp.array
+
+    @property
+    def dist(self):
+        dist = tfd.MixtureSameFamily(
+            mixture_distribution=tfd.Categorical(logits=self.mix),
+            components_distribution=tfd.Logistic(loc=self.loc, scale=self.scale)
+        )
+        return dist
+
+
+    def __call__(self, x:jnp.array)->jnp.array:
+
+        return self.a*self.dist.cdf(x)
+
 def main(_):
 
     clean_df = data.load_clean(FLAGS.pickle)
@@ -98,7 +123,17 @@ def main(_):
     day_events = day_events[50:]
     events=day_events.astype(np.float64)
     #events = events[:-2000]/1000
-    events = events[5000:]/1000
+    #events = events[5000:]/1000
+    counts = np.cumsum(jnp.ones_like(events))
+    model = LogisticGrowthV3(
+        a=20000,
+        loc=jnp.array([1e4,18e3]),
+        scale=jnp.array([3e3,4e3]),
+        mix = jnp.array([-2.,1.])
+    )
+
+    hat = model(events)
+
     t0 = events[0]
     T = events[-1]
 
