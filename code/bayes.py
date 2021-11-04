@@ -97,7 +97,7 @@ def poisson_mixture_regression(x:Any,nnz:int=2,prior_samples:Any=None ):
         else:
             w = yield  Root(tfd.Sample(tfd.Normal(loc=tensor(0.5), scale=tensor(0.5)), (1,nnz),name='w'))
             c = yield Root(tfd.Sample(tfd.Normal(loc=tensor(-8.), scale=tensor(3.)), (1,nnz),name='c'))
-            c0 = yield Root(tfd.Sample(tfd.Normal(loc=tensor(-10.), scale=tensor(3.)), (1, 1), name='c0'))
+            c0 = yield Root(tfd.Sample(tfd.Normal(loc=tensor(-12.), scale=tensor(3.)), (1, 1), name='c0'))
             logits = yield Root(tfd.Sample(tfd.Normal(loc=tensor(0), scale=tensor(2.)),(1,nnz+1),name='logits'))
 
         log_rate_nnz = _x@w+c
