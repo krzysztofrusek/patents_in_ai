@@ -36,7 +36,8 @@ class LogisticGrowthV3(NamedTuple):
     def dist(self):
         dist = tfd.MixtureSameFamily(
             mixture_distribution=tfd.Categorical(logits=self.mix),
-            components_distribution=tfd.Logistic(loc=self.loc, scale=self.scale)
+            #components_distribution=tfd.Logistic(loc=self.loc*13e3+7e3, scale=self.scale*13e3)
+            components_distribution = tfd.Logistic(loc=self.loc, scale=self.scale)
         )
         return dist
 
@@ -49,10 +50,64 @@ class LogisticGrowthV3(NamedTuple):
         return jnp.concatenate(self)
 
     @classmethod
-    def unpack(cls,dense:jnp.array)->'LogisticGrowthV3':
+    def unpack(cls,dense:jnp.array):
         return cls(*jnp.split(dense,(1,3,5)))
 
+#%%
 
+class InhomogeneousPoissonProcess(LogisticGrowthV3):
+
+    @property
+    def dist(self):
+        dist = tfd.MixtureSameFamily(
+            mixture_distribution=tfd.Categorical(logits=self.mix),
+            components_distribution=tfd.Logistic(loc=self.loc*13e3+7e3, scale=self.scale*13e3)
+            #components_distribution = tfd.Logistic(loc=self.loc, scale=self.scale)
+        )
+        return dist
+    def __call__(self, x:jnp.array)->jnp.array:
+
+        return 1e4*self.a*self.dist.prob(x)
+
+    def log_call(self, x:jnp.array)->jnp.array:
+        return jnp.log(1e4) + jnp.log(self.a)+ self.dist.log_prob(x)
+
+    def integral(self,x):
+        '''
+        :param x:
+        :return:
+        '''
+
+        return 1e4*self.a*self.dist.cdf(x)
+
+
+
+#%%
+ipp = InhomogeneousPoissonProcess(
+    a=jnp.array([1.68]),
+    loc=jnp.array([0.72078344, 0.90014877]),
+    scale=jnp.array([0.19851322, 0.03673386]),
+    mix = jnp.array([0.40917747, 1.09082253])
+)
+hat = ipp.integral(events)
+plt.plot(events,counts)
+plt.plot(events,hat)
+plt.show()
+
+hat = ipp(events)
+plt.plot(events,hat)
+plt.show()
+#%%
+td = (t*13000+7000).astype('datetime64[D]')
+alexnet_date=np.datetime64('2012-09-10')
+for i in range(2):
+
+    plt.plot(events,ipp.a*1e4*ipp.dist.components_distribution[i].prob(events))
+
+plt.axvline(alexnet_date,linestyle=':',color='k')
+
+
+plt.show()
 #%%
 clean_df = data.load_clean("dane/clean.pickle")
 day_events = clean_df.publication_date.sort_values().to_numpy().astype('datetime64[D]')
@@ -62,6 +117,8 @@ events=day_events.astype(np.float64)
 #%%
 counts = np.cumsum(jnp.ones_like(events))
 plt.plot(events,counts)
+plt.yscale('log')
+
 plt.show()
 #%%
 x = (events-7000)/13000
@@ -94,9 +151,90 @@ def fit(x:jnp.array,y:jnp.array,initial:LogisticGrowthV3):
                         method="BFGS",
                         options=dict(maxiter=500000, line_search_maxiter=1000)
                         )
+
+@jax.jit
+def fit_poison(x:jnp.array, initial:InhomogeneousPoissonProcess):
+    def nll(theta:jnp.array)->jnp.array:
+        m = InhomogeneousPoissonProcess.unpack(theta)
+        #ll = jnp.mean(jnp.log(m(events))) - jnp.sum(m.integral(x[-1])-m.integral(x[0]))/x.shape[0] # remove dim of size 1
+        ll = jnp.mean(m.log_call(events)) - jnp.sum(m.integral(x[-1]) -m.integral(x[0])) / x.shape[
+            0]  # remove dim of size 1
+        return -ll/2e3
+    return opt.minimize(nll,
+                        x0=initial.pack(),
+                        method="BFGS",
+                        options=dict(maxiter=500000, line_search_maxiter=1000)
+                        )
+
+@jax.jit
+def ols_poison(x:jnp.array, initial:InhomogeneousPoissonProcess):
+    y = jnp.cumsum(jnp.ones_like(x))
+    def nll(theta:jnp.array)->jnp.array:
+        m = InhomogeneousPoissonProcess.unpack(theta)
+        #ll = jnp.mean(jnp.log(m(events))) - jnp.sum(m.integral(x[-1])-m.integral(x[0]))/x.shape[0] # remove dim of size 1
+        ll = jnp.mean(jnp.square(y-m.integral(x))) /1e3
+        return ll
+    #return nll
+    return opt.minimize(nll,
+                        x0=initial.pack(),
+                        method="BFGS",
+                        options=dict(maxiter=500000, line_search_maxiter=1000)
+                        )
+
+
+#%%
+ipp = InhomogeneousPoissonProcess(
+    a=jnp.array([1.68]),
+    loc=jnp.array([0.72078344, 0.90014877]),
+    scale=jnp.array([0.19851322, 0.03673386]),
+    mix = jnp.array([0.40917747, 1.09082253])
+)
+hat = ipp.integral(events)
+plt.plot(events,counts)
+plt.plot(events,hat)
+plt.show()
+
+#%%
+opt_result = ols_poison(events,ipp)
+opt_result = ols_poison(events,ipp)
+#%%
+opt_result = fit_poison(events,ipp)
+fitted_ipp = InhomogeneousPoissonProcess.unpack(opt_result.x)
+print(opt_result.success)
+#%%
+hat = fitted_ipp.integral(events)
+plt.plot(events,counts)
+plt.plot(events,hat)
+plt.show()
+
+#%%
+opt_result = ols_poison(events,ipp)
+fitted_ipp = InhomogeneousPoissonProcess.unpack(opt_result.x)
+print(opt_result.success)
+#%%
+hat = fitted_ipp.integral(events)-fitted_ipp.integral(events[0])
+plt.plot(events,counts)
+plt.plot(events,hat)
+plt.show()
+
+#%%
+td = (events).astype('datetime64[D]')
+alexnet_date=np.datetime64('2012-09-10')
+for i in range(2):
+
+    plt.plot(td,fitted_ipp.dist.components_distribution[i].prob(events))
+
+plt.axvline(alexnet_date,linestyle=':',color='k')
+
+
+plt.show()
+
+
 #%%
 opt_result=fit(x[:-400],y[:-400],model)
 fitted = LogisticGrowthV3.unpack(opt_result.x)
+#  LogisticGrowthV3(a=DeviceArray([1.68389389], dtype=float64), loc=DeviceArray([0.72078344, 0.90014877], dtype=float64), scale=DeviceArray([0.19851322, 0.03673386], dtype=float64), mix=DeviceArray([0.40917747, 1.09082253], dtype=float64))
+
 #%%
 hat = fitted(t)
 plt.plot(x,y)
