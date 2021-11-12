@@ -23,7 +23,7 @@ class BayesResults:
             samples = pickle.load(f)
         all_long = np.reshape(np.concatenate(samples, axis=-1), (-1, 8))
         self.all_long_df = pd.DataFrame(all_long,
-                                   columns=['$w_1$', '$w_2$', '$c_1$', '$c_2$', '$c_0$', '$l_0$', '$l_1$', '$l_2$'])
+                                   columns=['$\alpha_1$', '$\alpha_2$', '$\beta_1$', '$\beta_2$', '$\beta_0$', '$l_0$', '$l_1$', '$l_2$'])
         self.samples = samples
 
 
