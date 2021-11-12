@@ -27,6 +27,7 @@ flags.DEFINE_integer("num_burnin_steps", 2, "...")
 flags.DEFINE_string('tag', "samples.pkl", "Name of the run and output file")
 flags.DEFINE_integer('toyear', 2021, "Run analysis up to year")
 flags.DEFINE_string('priorsample', None, "prior samples from other experiment")
+flags.DEFINE_float('loglambda_zero')
 
 Root = tfd.JointDistributionCoroutine.Root
 
@@ -80,7 +81,7 @@ def load_mcmc(path:str)->np.array:
     return None
 
 
-def poisson_mixture_regression(x:Any,nnz:int=2,prior_samples:Any=None ):
+def poisson_mixture_regression(x:Any,nnz:int=2,prior_samples:Any=None,llz:float=-8 ):
     @tfd.JointDistributionCoroutine
     def model():
         _x = tf.convert_to_tensor(x)
@@ -97,7 +98,7 @@ def poisson_mixture_regression(x:Any,nnz:int=2,prior_samples:Any=None ):
         else:
             w = yield  Root(tfd.Sample(tfd.Normal(loc=tensor(0.5), scale=tensor(0.5)), (1,nnz),name='w'))
             c = yield Root(tfd.Sample(tfd.Normal(loc=tensor(-8.), scale=tensor(3.)), (1,nnz),name='c'))
-            c0 = yield Root(tfd.Sample(tfd.Normal(loc=tensor(-8.), scale=tensor(3.)), (1, 1), name='c0'))
+            c0 = yield Root(tfd.Sample(tfd.Normal(loc=tensor(llz), scale=tensor(3.)), (1, 1), name='c0'))
             logits = yield Root(tfd.Sample(tfd.Normal(loc=tensor(0), scale=tensor(2.)),(1,nnz+1),name='logits'))
 
         log_rate_nnz = _x@w+c
@@ -177,7 +178,8 @@ def main(_):
     model = poisson_mixture_regression(
         np.broadcast_to(_x,[n_batch]+list(_x.shape)),
         nnz,
-        prior_samples=load_mcmc(FLAGS.priorsample)
+        prior_samples=load_mcmc(FLAGS.priorsample),
+        llz=FLAGS.loglambda_zero
     )
 
     _y = np.broadcast_to(dataset.y,[n_batch]+list(dataset.y.shape))

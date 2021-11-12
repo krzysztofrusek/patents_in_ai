@@ -165,7 +165,8 @@ y2018:
 		--num_chains 16 \
 		--num_adaptation 16000 \
 		--num_burnin_steps 16000 \
-		--toyear 2018
+		--toyear 2018 \
+		--loglambda_zero -12.0
 
 y2019: y2018
 	mkdir -p gen/$@
