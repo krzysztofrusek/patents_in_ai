@@ -29,18 +29,23 @@ FLAGS= flags.FLAGS
 # https://github.com/deepmind/deepmind-research/blob/master/counterfactual_fairness/causal_network.py
 
 class NormalPosterior(hk.Module):
-    def __init__(self,prior:tfd.Distribution,num_kl=1,bijector=None, name=None):
+    def __init__(self,prior:tfd.Distribution,num_kl=1,bijector=None,initial=None, name=None):
         super().__init__(name=name)
 
         self.prior = prior
         self.num_kl = num_kl
         self.bijector = bijector
+        self.initial = initial
+
 
     def __call__(self):
-
-        init = lambda  *args: jnp.mean(self.prior.mean()) + jnp.zeros(*args)
+        if self.initial:
+            init = lambda  *args: self.initial + jnp.zeros(*args)
+        else:
+            init = lambda  *args: jnp.mean(self.prior.mean()) + jnp.zeros(*args)
+        scale_init = lambda  *args: 2 + jnp.zeros(*args)
         loc = hk.get_parameter('loc', shape=self.prior.event_shape, init=init)
-        log_var = hk.get_parameter('log_var', shape=self.prior.event_shape, init=jnp.ones)
+        log_var = hk.get_parameter('log_var', shape=self.prior.event_shape, init=scale_init)
         scale = jnp.sqrt(jnp.exp(log_var))
         #scale=0.00001
 
@@ -58,8 +63,8 @@ class NormalPosterior(hk.Module):
         return param
 
 class SofplusNormalPosterior(NormalPosterior):
-    def __init__(self,prior:tfd.Distribution,num_kl=1, name=None):
-        super().__init__(prior=prior,num_kl=num_kl,bijector=tfp.bijectors.Softplus(),name=name)
+    def __init__(self,prior:tfd.Distribution,num_kl=1,initial=None, name=None):
+        super().__init__(prior=prior,num_kl=num_kl,bijector=tfp.bijectors.Softplus(),initial=initial,name=name)
 
 
 class InhomogeneousPoissonProcess(NamedTuple):
@@ -96,7 +101,8 @@ class LogisticGrowthSuperposition(hk.Module):
         super().__init__(name=name)
 
         self.maximum = SofplusNormalPosterior(
-            prior=tfd.LogNormal(loc=[1,], scale=1.8),num_kl=num_kl,
+            prior=tfd.LogNormal(loc=[0.5,], scale=2.),num_kl=num_kl,
+            initial=2.,
             name = 'maximum'
         )
         self.midpoints= NormalPosterior(
@@ -122,99 +128,7 @@ class LogisticGrowthSuperposition(hk.Module):
             mix = self.mix()
         )
 
-#
-# class LogisticGrowth(NamedTuple):
-#     '''
-#     https://en.wikipedia.org/wiki/Logistic_function
-#
-#     '''
-#     L:jnp.array
-#     k:jnp.array
-#     x0:jnp.array
-#
-#     @property
-#     def _L(self):
-#         return 1000.*self.L
-#         #return  self.L
-#     def __call__(self, x:jnp.array)->jnp.array:
-#         return self._L/(1+ jnp.exp(-self.k*(x-self.x0)))
-#
-#     def logistic_integral(self,x):
-#         '''
-#         https://www.wolframalpha.com/input/?i=integrate+L%2F%281%2Be%5E%28-k+%28x-x0%29%29%29
-#         :param x:
-#         :return:
-#         '''
-#         #integral = self.L*jnp.log(jnp.exp(self.k*(x-self.x0))+1)/self.k + self.L * x
-#         integral = self._L * jax.nn.softplus(self.k * (self.x0-x)) / self.k + self._L * x
-#         return integral
-#
-#     def pack(self):
-#         return jnp.stack(self)
-#
-#     @staticmethod
-#     def unpack(dense:jnp.array)->'LogisticGrowth':
-#         return LogisticGrowth(*jnp.split(dense,3))
-#
-# class LogisticGrowthV2(LogisticGrowth):
-#
-#     def __call__(self, x):
-#         f =  jax.jit(jax.vmap(jax.grad(super(LogisticGrowthV2, self).__call__)))
-#         return f(x)
-#
-#     def logistic_integral(self,x):
-#         return super(LogisticGrowthV2, self).__call__(x)
-#
-#
-# @jax.jit
-# def fit(events:jnp.array,initial:LogisticGrowth,t0:float, T:float):
-#     def nll(theta:jnp.array)->jnp.array:
-#         m = LogisticGrowth.unpack(theta)
-#         ll = jnp.sum(jnp.log(m(events))) - jnp.sum(m.logistic_integral(T)-m.logistic_integral(t0)) # remove dim of size 1
-#         return -ll/1e4
-#
-#     return opt.minimize(nll,
-#                         x0=initial.pack(),
-#                         method="BFGS",
-#                         options=dict(maxiter=500000, line_search_maxiter=1000)
-#                         )
-#
-# @jax.jit
-# def fit2(events:jnp.array,initial:LogisticGrowthV2,t0:float, T:float):
-#     def nll(theta:jnp.array)->jnp.array:
-#         m = LogisticGrowthV2.unpack(theta)
-#         ll = jnp.sum(jnp.log(m(events))) - jnp.sum(m.logistic_integral(T)-m.logistic_integral(t0)) # remove dim of size 1
-#         return -ll/1e6
-#
-#     return opt.minimize(nll,
-#                         x0=initial.pack(),
-#                         method="BFGS",
-#                         options=dict(maxiter=500000, line_search_maxiter=1000)
-#                         )
-#
-#
-# class LogisticGrowthV3(NamedTuple):
-#     '''
-#     https://en.wikipedia.org/wiki/Logistic_function
-#
-#     '''
-#     a:jnp.array
-#     loc:jnp.array
-#     scale:jnp.array
-#     mix:jnp.array
-#
-#     @property
-#     def dist(self):
-#         dist = tfd.MixtureSameFamily(
-#             mixture_distribution=tfd.Categorical(logits=self.mix),
-#             components_distribution=tfd.Logistic(loc=self.loc, scale=self.scale)
-#         )
-#         return dist
-#
-#
-#     def __call__(self, x:jnp.array)->jnp.array:
-#
-#         return self.a*self.dist.cdf(x)
+
 
 def main(_):
 
@@ -247,7 +161,7 @@ def main(_):
     grad_fn = jax.jit(jax.grad(elbo_loss))
     loss_fn = jax.jit(elbo_loss)
 
-    opt = optax.adam(0.1)
+    opt = optax.adam(0.08)
     opt_state = opt.init(params)
 
     for i in range(FLAGS.steps):

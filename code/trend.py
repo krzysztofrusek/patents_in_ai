@@ -324,20 +324,3 @@ plt.axvline(alexnet_date,linestyle=':',color='k')
 plt.show()
 
 
-#%%
-
-#events = events[:-2000]/1000
-#events = events[5000:]/1000
-
-model = LogisticGrowthV3(
-    a=20000,
-    loc=jnp.array([14e3,20e3]),
-    scale=jnp.array([5e3,1e3]),
-    mix = jnp.array([-0.5,2.])
-)
-
-t = np.linspace(8e3,20e3,500)
-hat = model(t)
-plt.plot(events,counts)
-plt.plot(t,hat)
-plt.show()
