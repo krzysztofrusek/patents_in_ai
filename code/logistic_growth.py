@@ -1,5 +1,6 @@
 import functools
 
+import optax
 from jax.config import config
 config.update("jax_enable_x64", True)
 
@@ -34,7 +35,9 @@ class NormalPosterior(hk.Module):
         self.bijector = bijector
 
     def __call__(self):
-        loc = hk.get_parameter('loc', shape=self.prior.event_shape, init=jnp.zeros)
+
+        init = lambda  *args: jnp.mean(self.prior.mean()) + jnp.zeros(*args)
+        loc = hk.get_parameter('loc', shape=self.prior.event_shape, init=init)
         log_var = hk.get_parameter('log_var', shape=self.prior.event_shape, init=jnp.ones)
         scale = jnp.sqrt(jnp.exp(log_var))
 
@@ -86,15 +89,15 @@ class LogisticGrowthSuperposition(hk.Module):
         super().__init__(name=name)
 
         self.maximum = SofplusNormalPosterior(
-            prior=tfd.LogNormal(loc=[1.,], scale=1.),num_kl=num_kl,
+            prior=tfd.LogNormal(loc=[9.,], scale=2.),num_kl=num_kl,
             name = 'maximum'
         )
         self.midpoints= NormalPosterior(
-            prior=tfd.Sample( tfd.Normal(1,0.5),2 ),num_kl=num_kl,
+            prior=tfd.Sample( tfd.Normal(1e4,1e4),2 ),num_kl=num_kl,
             name='midpoints'
         )
-        self.rates = NormalPosterior(
-            prior=tfd.Sample( tfd.Normal(1,0.5),2 ),num_kl=num_kl,
+        self.rates = SofplusNormalPosterior(
+            prior=tfd.Sample( tfd.Exponential(0.1),2 ),num_kl=num_kl,
             name='rates'
         )
         self.mix = NormalPosterior(
@@ -209,73 +212,41 @@ def main(_):
 
     clean_df = data.load_clean(FLAGS.pickle)
     day_events = clean_df.publication_date.sort_values().to_numpy().astype('datetime64[D]')
-    #day_events = day_events[50:]
-    day_events = day_events[50:]
     events=day_events.astype(np.float64)
-    #events = events[:-2000]/1000
-    #events = events[5000:]/1000
+
     counts = np.cumsum(jnp.ones_like(events))
-    model = LogisticGrowthV3(
-        a=20000,
-        loc=jnp.array([1e4,18e3]),
-        scale=jnp.array([3e3,4e3]),
-        mix = jnp.array([-2.,1.])
-    )
 
-    hat = model(events)
+    @hk.transform_with_state
+    def model():
+        m = LogisticGrowthSuperposition()
+        return m()
 
-    t0 = events[0]
-    T = events[-1]
+    rng = jax.random.PRNGKey(42)
 
-    #events = (events - t0)/(T-t0)
-
-    model =LogisticGrowthV2(
-        L=15.,
-        k=1.5,
-        x0=18.
-    )
-    model =LogisticGrowthV2(
-        L=6365.,
-        k=0.46,
-        x0=34.42
-    )
-    opt_result = fit2(events,initial=model,t0=t0,T=T)
-    fited = LogisticGrowthV2.unpack(opt_result.x)
-    fited=LogisticGrowthV2(*map(lambda x: float(x),fited))
+    new_key, rng = jax.random.split(rng,2)
+    params, state = model.init(rng)
 
 
+    def elbo_loss(params, state, rng, t):
+        dist, state = model.apply(params, state, rng)
+        nll = -jnp.mean(dist.log_prob(t))
+        total_kl = sum(kl for kl in  jax.tree_leaves(
+            hk.data_structures.filter(lambda module_name, name, value: name == 'kl', state)))
+        return (nll + total_kl)/1e3
 
+    grad_fn = jax.jit(jax.grad(elbo_loss))
+    loss_fn = jax.jit(elbo_loss)
 
-    slambda = 1/(pd.DataFrame(np.diff(events),index=day_events[:-1] ).ewm(alpha=0.02).mean())
-    slambda.plot()
-    _lambda = fited(events)
-    plt.plot(day_events,1/_lambda)
-    plt.yscale('log')
-    #plt.plot(day_events, np.cumsum(np.ones(day_events.shape)))
+    opt = optax.adam(0.1)
+    opt_state = opt.init(params)
 
-    plt.show()
-
-    plt.plot(day_events, np.cumsum(np.ones(day_events.shape)))
-    cum_lambda = model.logistic_integral(events)
-    plt.plot(day_events, cum_lambda)
-    plt.show()
-
-    slambda = 1 / (pd.DataFrame(np.diff(events), index=day_events[:-1]).ewm(alpha=0.02).mean())
-    slambda.plot()
-    plt.plot(day_events, np.cumsum(np.ones(day_events.shape)))
-    cum_lambda = fited.logistic_integral(events)
-    plt.plot(day_events, cum_lambda)
-    cum_lambda = fited(events)
-    plt.plot(day_events, cum_lambda)
-    plt.show()
-
-    cum_lambda = fited.logistic_integral(events)
-    plt.plot(day_events, cum_lambda)
-    cum_lambda = fited(events)
-    plt.plot(day_events, cum_lambda)
-    plt.show()
-
-
+    for i in range(100):
+        grads = grad_fn(params, state, new_key, events)
+        updates, opt_state = opt.update(grads, opt_state)
+        params = optax.apply_updates(params, updates)
+        if i % 10 ==0:
+            print(loss_fn(params, state, new_key, events))
+            print(params)
 
 
     return 0
