@@ -109,11 +109,76 @@ plt.axvline(alexnet_date,linestyle=':',color='k')
 
 plt.show()
 #%%
+x= np.linspace(0,10,100)
+y=tfd.LogNormal(loc=[1,], scale=0.5).prob(x)
+plt.plot(x,y)
+plt.show()
+#%%
 clean_df = data.load_clean("dane/clean.pickle")
 day_events = clean_df.publication_date.sort_values().to_numpy().astype('datetime64[D]')
 #day_events = day_events[50:]
 #day_events = day_events[50:]
 events=day_events.astype(np.float64)
+
+#%% nowe
+
+class InhomogeneousPoissonProcess(NamedTuple):
+    maximum:jnp.ndarray
+    midpoints:jnp.ndarray
+    rates:jnp.ndarray
+    mix:jnp.ndarray
+
+    @property
+    def capacity(self):
+        return 1e4*self.maximum
+
+    @property
+    def distribution(self):
+        return tfd.MixtureSameFamily(
+            mixture_distribution=tfd.Categorical(logits=self.mix),
+            components_distribution=tfd.Logistic(loc=self.midpoints*13e3+7e3, scale=self.rates*13e3)
+        )
+
+    def log_rate(self,events:jnp.ndarray):
+        return jnp.log(self.capacity)+ self.distribution.log_prob(events)
+
+    def cumulative_rate(self,x:jnp.ndarray):
+        return self.capacity * self.distribution.cdf(x)
+
+
+wyznaczone = InhomogeneousPoissonProcess(
+    maximum=5.68,
+    midpoints=jnp.array([0.9968559 , 1.8940382 ]),
+    rates=jnp.array([0.05962872, 0.59377897]),
+    mix=jnp.array([ 0.08877622, -0.1729958 ])
+
+)
+
+wyznaczone = InhomogeneousPoissonProcess(
+    maximum=jnp.array([4.118548]),
+    midpoints=jnp.array([1.084058  , 0.9827988 ]),
+    rates=jnp.array([0.3611422 , 0.05136992]),
+    mix=jnp.array([ [-0.46248153,  0.36811638]  ])
+
+)
+
+hat = wyznaczone.cumulative_rate(events)-wyznaczone.cumulative_rate(events[0])
+plt.plot(events,counts)
+plt.plot(events,hat)
+plt.show()
+
+hat = np.exp(wyznaczone.log_rate(events))
+plt.plot(events,hat)
+plt.show()
+#%%
+alexnet_date=np.datetime64('2012-09-10')
+for i in range(2):
+
+    plt.plot(events,wyznaczone.capacity*wyznaczone.distribution.components_distribution[i].prob(events))
+
+plt.axvline(alexnet_date,linestyle=':',color='k')
+plt.show()
+
 #%%
 counts = np.cumsum(jnp.ones_like(events))
 plt.plot(events,counts)

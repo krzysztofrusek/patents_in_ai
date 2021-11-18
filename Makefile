@@ -246,3 +246,7 @@ paper2017:
 
 time_evolution: paper2018 paper2019 paper2020
 	echo "time_evolution"
+
+
+trend:
+	python3 code/logistic_growth.py --pickle dane/clean.pickle --nkl 128 --steps 400

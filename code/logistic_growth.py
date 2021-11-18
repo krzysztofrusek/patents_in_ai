@@ -1,9 +1,9 @@
-import functools
-
-import optax
 from jax.config import config
 config.update("jax_enable_x64", True)
 
+import functools
+
+import optax
 import numpy as np
 from matplotlib import pyplot as plt
 import pandas as pd
@@ -20,6 +20,8 @@ import haiku as hk
 import data
 
 flags.DEFINE_string("pickle", "../dane/clean.pickle", "Input file")
+flags.DEFINE_integer("nkl", 8, "num samples for kl")
+flags.DEFINE_integer("steps", 1000, "num samples for kl")
 
 FLAGS= flags.FLAGS
 
@@ -40,6 +42,7 @@ class NormalPosterior(hk.Module):
         loc = hk.get_parameter('loc', shape=self.prior.event_shape, init=init)
         log_var = hk.get_parameter('log_var', shape=self.prior.event_shape, init=jnp.ones)
         scale = jnp.sqrt(jnp.exp(log_var))
+        #scale=0.00001
 
         posterior = tfd.Normal(loc=loc, scale=scale)
         posterior = tfd.Independent(posterior, 1 if self.prior.event_shape!=[] else None)
@@ -49,9 +52,9 @@ class NormalPosterior(hk.Module):
 
         param = posterior.sample(self.num_kl, seed=hk.next_rng_key())
         kl = jnp.mean(posterior.log_prob(param)-self.prior.log_prob(param), axis=0)
+        #kl = jnp.mean(self.prior.log_prob(param)-posterior.log_prob(param) , axis=0)
         hk.set_state('kl',kl)
-        #hk.set_state('pol',posterior.log_prob(param))
-        #hk.set_state('prl', self.prior.log_prob(param))
+
         return param
 
 class SofplusNormalPosterior(NormalPosterior):
@@ -66,17 +69,21 @@ class InhomogeneousPoissonProcess(NamedTuple):
     mix:jnp.ndarray
 
     @property
+    def capacity(self):
+        return 1e4*self.maximum
+
+    @property
     def distribution(self):
         return tfd.MixtureSameFamily(
             mixture_distribution=tfd.Categorical(logits=self.mix),
-            components_distribution=tfd.Logistic(loc=self.midpoints, scale=self.rates)
+            components_distribution=tfd.Logistic(loc=self.midpoints*13e3+7e3, scale=self.rates*13e3)
         )
 
     def log_rate(self,events:jnp.ndarray):
-        return jnp.log(self.maximum)+ self.distribution.log_prob(events)
+        return jnp.log(self.capacity)+ self.distribution.log_prob(events)
 
     def cumulative_rate(self,x:jnp.ndarray):
-        return self.maximum * self.distribution.cdf(x)
+        return self.capacity * self.distribution.cdf(x)
 
     @functools.partial(jax.vmap, in_axes=(0,None))
     def log_prob(self,events:jnp.ndarray):
@@ -89,19 +96,20 @@ class LogisticGrowthSuperposition(hk.Module):
         super().__init__(name=name)
 
         self.maximum = SofplusNormalPosterior(
-            prior=tfd.LogNormal(loc=[9.,], scale=2.),num_kl=num_kl,
+            prior=tfd.LogNormal(loc=[1,], scale=1.8),num_kl=num_kl,
             name = 'maximum'
         )
         self.midpoints= NormalPosterior(
-            prior=tfd.Sample( tfd.Normal(1e4,1e4),2 ),num_kl=num_kl,
+            prior=tfd.Sample( tfd.Normal(1.,1.),2 ),num_kl=num_kl,
             name='midpoints'
         )
         self.rates = SofplusNormalPosterior(
-            prior=tfd.Sample( tfd.Exponential(0.1),2 ),num_kl=num_kl,
+            prior=tfd.Sample( tfd.Exponential(3.0),2 ),num_kl=num_kl,
             name='rates'
         )
         self.mix = NormalPosterior(
-            prior=tfd.Sample( tfd.Normal(0,5.),2 ),num_kl=num_kl,
+            prior=tfd.Sample(tfd.Normal(0, 1.), 2),
+            num_kl=num_kl,
             name='mix'
         )
 
@@ -214,14 +222,16 @@ def main(_):
     day_events = clean_df.publication_date.sort_values().to_numpy().astype('datetime64[D]')
     events=day_events.astype(np.float64)
 
+    events = events[:-300]
+
     counts = np.cumsum(jnp.ones_like(events))
 
     @hk.transform_with_state
     def model():
-        m = LogisticGrowthSuperposition()
+        m = LogisticGrowthSuperposition(num_kl=FLAGS.nkl)
         return m()
 
-    rng = jax.random.PRNGKey(42)
+    rng = jax.random.PRNGKey(44)
 
     new_key, rng = jax.random.split(rng,2)
     params, state = model.init(rng)
@@ -232,7 +242,7 @@ def main(_):
         nll = -jnp.mean(dist.log_prob(t))
         total_kl = sum(kl for kl in  jax.tree_leaves(
             hk.data_structures.filter(lambda module_name, name, value: name == 'kl', state)))
-        return (nll + total_kl)/1e3
+        return (nll + total_kl)
 
     grad_fn = jax.jit(jax.grad(elbo_loss))
     loss_fn = jax.jit(elbo_loss)
@@ -240,13 +250,17 @@ def main(_):
     opt = optax.adam(0.1)
     opt_state = opt.init(params)
 
-    for i in range(100):
+    for i in range(FLAGS.steps):
+        new_key, rng = jax.random.split(rng, 2)
         grads = grad_fn(params, state, new_key, events)
         updates, opt_state = opt.update(grads, opt_state)
         params = optax.apply_updates(params, updates)
         if i % 10 ==0:
-            print(loss_fn(params, state, new_key, events))
-            print(params)
+            logging.info(f'step {i}, loss {loss_fn(params, state, new_key, events)}')
+            #print(params)
+
+    dist, _ = model.apply(params, state, rng)
+    logging.info(dist)
 
 
     return 0
