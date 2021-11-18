@@ -26,20 +26,34 @@ FLAGS= flags.FLAGS
 # https://github.com/deepmind/deepmind-research/blob/master/counterfactual_fairness/causal_network.py
 
 class NormalPosterior(hk.Module):
-    def __init__(self,prior:tfd.Distribution,num_kl=1,name=None):
+    def __init__(self,prior:tfd.Distribution,num_kl=1,bijector=None, name=None):
         super().__init__(name=name)
 
         self.prior = prior
         self.num_kl = num_kl
+        self.bijector = bijector
 
     def __call__(self):
         loc = hk.get_parameter('loc', shape=self.prior.event_shape, init=jnp.zeros)
         log_var = hk.get_parameter('log_var', shape=self.prior.event_shape, init=jnp.ones)
         scale = jnp.sqrt(jnp.exp(log_var))
+
         posterior = tfd.Normal(loc=loc, scale=scale)
+        posterior = tfd.Independent(posterior, 1 if self.prior.event_shape!=[] else None)
+
+        if self.bijector:
+            posterior = tfd.TransformedDistribution(posterior, self.bijector)
+
         param = posterior.sample(self.num_kl, seed=hk.next_rng_key())
-        hk.set_state('kl',self.prior.log_prob(param))
+        kl = jnp.mean(posterior.log_prob(param)-self.prior.log_prob(param), axis=0)
+        hk.set_state('kl',kl)
+        #hk.set_state('pol',posterior.log_prob(param))
+        #hk.set_state('prl', self.prior.log_prob(param))
         return param
+
+class SofplusNormalPosterior(NormalPosterior):
+    def __init__(self,prior:tfd.Distribution,num_kl=1, name=None):
+        super().__init__(prior=prior,num_kl=num_kl,bijector=tfp.bijectors.Softplus(),name=name)
 
 
 class InhomogeneousPoissonProcess(NamedTuple):
@@ -71,8 +85,8 @@ class LogisticGrowthSuperposition(hk.Module):
     def __init__(self, num_kl:int=4,name=None):
         super().__init__(name=name)
 
-        self.maximum = NormalPosterior(
-            prior=tfd.LogNormal(loc=1., scale=1.),num_kl=num_kl,
+        self.maximum = SofplusNormalPosterior(
+            prior=tfd.LogNormal(loc=[1.,], scale=1.),num_kl=num_kl,
             name = 'maximum'
         )
         self.midpoints= NormalPosterior(

@@ -15,11 +15,21 @@ class PosteriorTestCase(unittest.TestCase):
 
         @hk.transform_with_state
         def trainable_normal():
-            return lg.NormalPosterior(prior=tfd.Normal(loc=0., scale=2.),name="test")()
+            return lg.NormalPosterior(prior=tfd.Normal(loc=0., scale=2.),name="test",num_kl=2)()
 
         rng = jax.random.PRNGKey(42)
-        trainable_normal.init(rng)
+        p,s = trainable_normal.init(rng)
+        trainable_normal.apply(p,s,rng)
 
+    def test_trainable_plus(self):
+
+        @hk.transform_with_state
+        def trainable_normal():
+            return lg.SofplusNormalPosterior(prior=tfd.LogNormal(loc=0., scale=2.),name="test", num_kl=2)()
+
+        rng = jax.random.PRNGKey(42)
+        p,s = trainable_normal.init(rng)
+        trainable_normal.apply(p,s,rng)
 
 class IPPTestCase(unittest.TestCase):
     def test_vmap(self):
@@ -70,7 +80,7 @@ class LogisticGrowthTestCase(unittest.TestCase):
         params, state = model.init(rng)
         dist, state = model.apply(params, state,rng)
         t = jnp.array([1, 2, 3.])
-        dist.log_prob(t)
+        lp=dist.log_prob(t)
         ...
 
 
