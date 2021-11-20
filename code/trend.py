@@ -155,10 +155,10 @@ wyznaczone = InhomogeneousPoissonProcess(
 )
 
 wyznaczone = InhomogeneousPoissonProcess(
-    maximum=jnp.array([4.118548]),
-    midpoints=jnp.array([1.084058  , 0.9827988 ]),
-    rates=jnp.array([0.3611422 , 0.05136992]),
-    mix=jnp.array([ [-0.46248153,  0.36811638]  ])
+    maximum=jnp.array([6.55]),
+    midpoints=jnp.array([1.3478401, 1.0194376]),
+    rates=jnp.array([0.74029773, 0.0618737 ]),
+    mix=jnp.array([ [ 0.7392158 ,  1.6843295 ]  ])
 
 )
 
@@ -174,7 +174,7 @@ plt.show()
 alexnet_date=np.datetime64('2012-09-10')
 for i in range(2):
 
-    plt.plot(events,wyznaczone.capacity*wyznaczone.distribution.components_distribution[i].prob(events))
+    plt.plot(events,wyznaczone.distribution.mixture_distribution.probs_parameter()[0,i]*wyznaczone.capacity*wyznaczone.distribution.components_distribution[i].prob(events))
 
 plt.axvline(alexnet_date,linestyle=':',color='k')
 plt.show()

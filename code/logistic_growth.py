@@ -101,16 +101,16 @@ class LogisticGrowthSuperposition(hk.Module):
         super().__init__(name=name)
 
         self.maximum = SofplusNormalPosterior(
-            prior=tfd.LogNormal(loc=[0.5,], scale=2.),num_kl=num_kl,
+            prior=tfd.LogNormal(loc=[5.0,], scale=2.),num_kl=num_kl,
             initial=2.,
             name = 'maximum'
         )
         self.midpoints= NormalPosterior(
-            prior=tfd.Sample( tfd.Normal(1.,1.),2 ),num_kl=num_kl,
+            prior=tfd.Sample( tfd.Normal(1.,3.),2 ),num_kl=num_kl,
             name='midpoints'
         )
         self.rates = SofplusNormalPosterior(
-            prior=tfd.Sample( tfd.Exponential(3.0),2 ),num_kl=num_kl,
+            prior=tfd.Sample( tfd.Exponential(0.5),2 ),num_kl=num_kl,
             name='rates'
         )
         self.mix = NormalPosterior(
@@ -125,7 +125,7 @@ class LogisticGrowthSuperposition(hk.Module):
             maximum=self.maximum(),
             midpoints=self.midpoints(),
             rates=self.rates(),
-            mix = self.mix()
+            mix = jnp.cumsum(self.mix(), axis=-1)
         )
 
 
