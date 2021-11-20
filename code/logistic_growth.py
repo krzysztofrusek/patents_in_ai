@@ -1,3 +1,5 @@
+import os.path
+
 from jax.config import config
 config.update("jax_enable_x64", True)
 
@@ -5,8 +7,10 @@ import functools
 
 import optax
 import numpy as np
-from matplotlib import pyplot as plt
-import pandas as pd
+import matplotlib as mpl
+import seaborn as sns
+from  matplotlib import pyplot as plt
+
 import jax
 import jax.numpy as jnp
 import jax.scipy.optimize as opt
@@ -22,6 +26,8 @@ import data
 flags.DEFINE_string("pickle", "../dane/clean.pickle", "Input file")
 flags.DEFINE_integer("nkl", 8, "num samples for kl")
 flags.DEFINE_integer("steps", 1000, "num samples for kl")
+flags.DEFINE_integer("seed", 1000, "initial seed")
+flags.DEFINE_string("out", "out", "Output directory")
 
 FLAGS= flags.FLAGS
 
@@ -106,7 +112,7 @@ class LogisticGrowthSuperposition(hk.Module):
             name = 'maximum'
         )
         self.midpoints= NormalPosterior(
-            prior=tfd.Sample( tfd.Normal(1.,3.),2 ),num_kl=num_kl,
+            prior=tfd.Sample( tfd.Normal(1.0,10.),2 ),num_kl=num_kl,
             name='midpoints'
         )
         self.rates = SofplusNormalPosterior(
@@ -131,12 +137,19 @@ class LogisticGrowthSuperposition(hk.Module):
 
 
 def main(_):
+    # try:
+    #     mpl.use('MacOSX')
+    # except:
+    #mpl.use('Agg')
 
     clean_df = data.load_clean(FLAGS.pickle)
     day_events = clean_df.publication_date.sort_values().to_numpy().astype('datetime64[D]')
     events=day_events.astype(np.float64)
 
-    events = events[:-300]
+    train_test_date = np.datetime64('2020-09-01')
+    last_idx = np.where(day_events<train_test_date)[0][-1]
+
+    train_events = events[:last_idx]
 
     counts = np.cumsum(jnp.ones_like(events))
 
@@ -145,7 +158,7 @@ def main(_):
         m = LogisticGrowthSuperposition(num_kl=FLAGS.nkl)
         return m()
 
-    rng = jax.random.PRNGKey(44)
+    rng = jax.random.PRNGKey(144)
 
     new_key, rng = jax.random.split(rng,2)
     params, state = model.init(rng)
@@ -166,16 +179,61 @@ def main(_):
 
     for i in range(FLAGS.steps):
         new_key, rng = jax.random.split(rng, 2)
-        grads = grad_fn(params, state, new_key, events)
+        grads = grad_fn(params, state, new_key, train_events)
         updates, opt_state = opt.update(grads, opt_state)
         params = optax.apply_updates(params, updates)
         if i % 10 ==0:
-            logging.info(f'step {i}, loss {loss_fn(params, state, new_key, events)}')
+            logging.info(f'step {i}, loss {loss_fn(params, state, new_key, train_events)}')
             #print(params)
 
     dist, _ = model.apply(params, state, rng)
     logging.info(dist)
 
+    @functools.partial(jax.vmap, in_axes=(0,None))
+    def v_cum_rate(dist, t):
+        cum_rate = dist.cumulative_rate(t)
+        return cum_rate-cum_rate[0]
+
+    v_log_rate = jax.vmap(InhomogeneousPoissonProcess.log_rate, in_axes=(0,None))
+
+    cum_rates = v_cum_rate(dist, events)
+    rates = jnp.exp(v_log_rate(dist, events))
+
+    mean_cum_rate = jnp.mean(cum_rates, axis=0)
+    cl,ch = np.quantile(cum_rates,q=[0.025,0.975], axis=0)
+    f = plt.figure()
+    plt.plot(day_events, mean_cum_rate, label='cumulative rate')
+    plt.plot(day_events,counts,label='counts')
+
+    plt.fill_between(day_events,cl,ch,alpha=0.5, label=r'95 % interval')
+
+    plt.axvline(train_test_date, linestyle=':', color='k',label='train end')
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(os.path.join(FLAGS.out,'cumrate.pdf'))
+
+    alexnet_date = np.datetime64('2012-09-10')
+
+    @functools.partial(jax.vmap, in_axes=(0, None,None))
+    def rate_component(dist:InhomogeneousPoissonProcess,events,i):
+        return dist.distribution.mixture_distribution.probs_parameter()[ i]*\
+               dist.distribution.components_distribution[i].prob(events)*dist.capacity
+    plt.close(f)
+    f = plt.figure()
+
+    for i in range(2):
+        rates = rate_component(dist,events,i)
+        plt.plot(events, np.mean(rates, axis=0),label=f'$\lambda_{i+1}(t)$')
+        cl, ch = np.quantile(rates, q=[0.025, 0.975], axis=0)
+        plt.fill_between(day_events, cl, ch, alpha=0.3, label=r'95 % interval')
+
+
+    plt.axvline(alexnet_date, linestyle=':', color='grey',label='alexnet')
+    plt.axvline(train_test_date, linestyle=':', color='k', label='train end')
+
+    plt.legend()
+
+    plt.savefig(os.path.join(FLAGS.out,'rate.pdf'))
 
     return 0
 

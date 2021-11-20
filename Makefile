@@ -249,4 +249,4 @@ time_evolution: paper2018 paper2019 paper2020
 
 
 trend:
-	python3 code/logistic_growth.py --pickle dane/clean.pickle --nkl 2048 --steps 1000
+	python3 code/logistic_growth.py --pickle dane/clean.pickle --nkl 8192 --steps 2000 --seed 22
