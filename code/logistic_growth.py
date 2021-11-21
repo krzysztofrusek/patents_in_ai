@@ -1,4 +1,5 @@
 import os.path
+import pickle
 
 from jax.config import config
 config.update("jax_enable_x64", True)
@@ -158,7 +159,7 @@ def main(_):
         m = LogisticGrowthSuperposition(num_kl=FLAGS.nkl)
         return m()
 
-    rng = jax.random.PRNGKey(144)
+    rng = jax.random.PRNGKey(FLAGS.seed)
 
     new_key, rng = jax.random.split(rng,2)
     params, state = model.init(rng)
@@ -234,6 +235,9 @@ def main(_):
     plt.legend()
 
     plt.savefig(os.path.join(FLAGS.out,'rate.pdf'))
+
+    with open(os.path.join(FLAGS.out,'stat_params.pickle'), 'wb') as f:
+        pickle.dump((params,state), f)
 
     return 0
 

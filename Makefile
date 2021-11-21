@@ -247,6 +247,25 @@ paper2017:
 time_evolution: paper2018 paper2019 paper2020
 	echo "time_evolution"
 
+#982995
+#127445
+#635725
+#792848
+#16917
+#773737
+#979000
+#318589
 
 trend:
-	python3 code/logistic_growth.py --pickle dane/clean.pickle --nkl 8192 --steps 2000 --seed 22
+	PYTHONPATH=${PYTHONPATH} python3 code/logistic_growth.py --pickle dane/clean.pickle --nkl 8192 --steps 2000 --seed 22
+
+gen/trends/% :
+	mkdir -p $@
+	PYTHONPATH=${PYTHONPATH} python3 code/logistic_growth.py \
+		--pickle dane/clean.pickle \
+		--nkl 8192 \
+		--steps 2000 \
+		--seed $* \
+		--out $@
+
+seeded_trends: gen/trends/982995 gen/trends/127445 gen/trends/635725 gen/trends/792848 gen/trends 16917 gen/trends/773737 gen/trends/979000  gen/trends/318589
