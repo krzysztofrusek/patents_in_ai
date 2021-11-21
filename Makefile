@@ -268,4 +268,4 @@ gen/trends/% :
 		--seed $* \
 		--out $@
 
-seeded_trends: gen/trends/982995 gen/trends/127445 gen/trends/635725 gen/trends/792848 gen/trends 16917 gen/trends/773737 gen/trends/979000  gen/trends/318589
+seeded_trends: gen/trends/982995 gen/trends/127445 gen/trends/635725 gen/trends/792848 gen/trends/16917 gen/trends/773737 gen/trends/979000  gen/trends/318589
