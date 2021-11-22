@@ -29,6 +29,7 @@ flags.DEFINE_integer("nkl", 8, "num samples for kl")
 flags.DEFINE_integer("steps", 1000, "num samples for kl")
 flags.DEFINE_integer("seed", 1000, "initial seed")
 flags.DEFINE_string("out", "out", "Output directory")
+flags.DEFINE_bool("coldstart", True, "train or restore files and plot results")
 
 FLAGS= flags.FLAGS
 
@@ -178,14 +179,19 @@ def main(_):
     opt = optax.adam(0.08)
     opt_state = opt.init(params)
 
-    for i in range(FLAGS.steps):
-        new_key, rng = jax.random.split(rng, 2)
-        grads = grad_fn(params, state, new_key, train_events)
-        updates, opt_state = opt.update(grads, opt_state)
-        params = optax.apply_updates(params, updates)
-        if i % 10 ==0:
-            logging.info(f'step {i}, loss {loss_fn(params, state, new_key, train_events)}')
+    if FLAGS.coldstart:
+        for i in range(FLAGS.steps):
+            new_key, rng = jax.random.split(rng, 2)
+            grads = grad_fn(params, state, new_key, train_events)
+            updates, opt_state = opt.update(grads, opt_state)
+            params = optax.apply_updates(params, updates)
+            if i % 10 ==0:
+                logging.info(f'step {i}, loss {loss_fn(params, state, new_key, train_events)}')
             #print(params)
+    else:
+        with open(os.path.join(FLAGS.out,'stat_params.pickle')) as f:
+            params, state = pickle.load(f)
+
 
     dist, _ = model.apply(params, state, rng)
     logging.info(dist)

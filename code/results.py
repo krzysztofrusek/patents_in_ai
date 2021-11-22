@@ -16,6 +16,8 @@ from absl import flags, app, logging
 FLAGS= flags.FLAGS
 flags.DEFINE_string("mcmcpickle", "../gen/mcmc3/samples.pkl", "Input file")
 flags.DEFINE_string("paperdir", "../gen/paper", "out dir")
+flags.DEFINE_string('trend_pickle','../plg/trends/16917')
+
 
 class BayesResults:
     def __init__(self,path:str):
@@ -240,6 +242,9 @@ def main(_):
             },
         font_scale=1.0
     )
+
+    tr = Trend()
+    tr.prior_predictive()
 
     with sns.plotting_context(rc={
             'figure.figsize': (4.7, 4.7),
