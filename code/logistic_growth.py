@@ -2,6 +2,9 @@ import os.path
 import pickle
 
 from jax.config import config
+
+from util import plot_config
+
 config.update("jax_enable_x64", True)
 
 import functools
@@ -139,10 +142,7 @@ class LogisticGrowthSuperposition(hk.Module):
 
 
 def main(_):
-    # try:
-    #     mpl.use('MacOSX')
-    # except:
-    #mpl.use('Agg')
+    plot_config()
 
     clean_df = data.load_clean(FLAGS.pickle)
     day_events = clean_df.publication_date.sort_values().to_numpy().astype('datetime64[D]')
@@ -188,11 +188,21 @@ def main(_):
             if i % 10 ==0:
                 logging.info(f'step {i}, loss {loss_fn(params, state, new_key, train_events)}')
             #print(params)
+
+        with open(os.path.join(FLAGS.out, 'stat_params.pickle'), 'wb') as f:
+            pickle.dump((params, state), f)
     else:
-        with open(os.path.join(FLAGS.out,'stat_params.pickle')) as f:
+        with open(os.path.join(FLAGS.out,'stat_params.pickle'),'rb') as f:
             params, state = pickle.load(f)
 
+    logging.info('midpoints')
+    logging.info((params['logistic_growth_superposition/~/midpoints']['loc']*13e3+7e3).astype('datetime64[D]'))
+    logging.info('+-')
+    logging.info(2*np.sqrt(np.exp(params['logistic_growth_superposition/~/midpoints']['log_var'])) * 13e3)
 
+    extra_time = np.linspace(events[-1],np.datetime64('2030-01-01').astype(np.float),100)
+    plot_events = np.concatenate((events,extra_time))
+    plotx = plot_events.astype('datetime64[D]')
     dist, _ = model.apply(params, state, rng)
     logging.info(dist)
 
@@ -203,20 +213,24 @@ def main(_):
 
     v_log_rate = jax.vmap(InhomogeneousPoissonProcess.log_rate, in_axes=(0,None))
 
-    cum_rates = v_cum_rate(dist, events)
-    rates = jnp.exp(v_log_rate(dist, events))
+    cum_rates = v_cum_rate(dist, plot_events)
+    rates = jnp.exp(v_log_rate(dist, plot_events))
 
     mean_cum_rate = jnp.mean(cum_rates, axis=0)
     cl,ch = np.quantile(cum_rates,q=[0.025,0.975], axis=0)
     f = plt.figure()
-    plt.plot(day_events, mean_cum_rate, label='cumulative rate')
+    plt.plot(plotx, mean_cum_rate, label='cumulative rate')
     plt.plot(day_events,counts,label='counts')
 
-    plt.fill_between(day_events,cl,ch,alpha=0.5, label=r'95 % interval')
+    plt.fill_between(plotx,cl,ch,alpha=0.5, label=r'95 % interval')
 
     plt.axvline(train_test_date, linestyle=':', color='k',label='train end')
+
     plt.legend()
+    plt.yscale('log')
     plt.tight_layout()
+
+
     plt.savefig(os.path.join(FLAGS.out,'cumrate.pdf'))
 
     alexnet_date = np.datetime64('2012-09-10')
@@ -229,21 +243,20 @@ def main(_):
     f = plt.figure()
 
     for i in range(2):
-        rates = rate_component(dist,events,i)
-        plt.plot(events, np.mean(rates, axis=0),label=f'$\lambda_{i+1}(t)$')
+        rates = rate_component(dist,plot_events,i)
+        plt.plot(plot_events, np.mean(rates, axis=0),label=f'$\lambda_{i+1}(t)$')
         cl, ch = np.quantile(rates, q=[0.025, 0.975], axis=0)
-        plt.fill_between(day_events, cl, ch, alpha=0.3, label=r'95 % interval')
+        plt.fill_between(plotx, cl, ch, alpha=0.3, label=r'95 % interval')
 
 
     plt.axvline(alexnet_date, linestyle=':', color='grey',label='alexnet')
     plt.axvline(train_test_date, linestyle=':', color='k', label='train end')
-
+    plt.axvline(day_events[-1],linestyle='-.', color='grey', label='data end')
     plt.legend()
 
     plt.savefig(os.path.join(FLAGS.out,'rate.pdf'))
 
-    with open(os.path.join(FLAGS.out,'stat_params.pickle'), 'wb') as f:
-        pickle.dump((params,state), f)
+
 
     return 0
 

@@ -13,6 +13,8 @@ import seaborn as sns
 import numpy as np
 from absl import flags, app, logging
 
+from util import plot_config
+
 FLAGS= flags.FLAGS
 flags.DEFINE_string("mcmcpickle", "../gen/mcmc3/samples.pkl", "Input file")
 flags.DEFINE_string("paperdir", "../gen/paper", "out dir")
@@ -226,25 +228,7 @@ class PatentCooperationGraph:
 
 
 def main(_):
-    try:
-        mpl.use('MacOSX')
-    except:
-        mpl.use('Agg')
-    sns.set_theme(
-        context='paper',
-        style='whitegrid',
-        rc={
-            'figure.figsize': (4.7, 2.9),
-            'font.size': 10,
-            'font.family': 'serif',
-            'xtick.labelsize':7,
-            'ytick.labelsize': 7
-            },
-        font_scale=1.0
-    )
-
-    tr = Trend()
-    tr.prior_predictive()
+    plot_config()
 
     with sns.plotting_context(rc={
             'figure.figsize': (4.7, 4.7),
