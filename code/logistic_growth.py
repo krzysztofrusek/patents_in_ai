@@ -56,9 +56,9 @@ class NormalPosterior(hk.Module):
             init = lambda  *args: self.initial + jnp.zeros(*args)
         else:
             init = lambda  *args: jnp.mean(self.prior.mean()) + jnp.zeros(*args)
-        scale_init = lambda  *args: 2 + jnp.zeros(*args)
-        loc = hk.get_parameter('loc', shape=self.prior.event_shape, init=init)
-        log_var = hk.get_parameter('log_var', shape=self.prior.event_shape, init=scale_init)
+        scale_init = lambda  *args: _ta(2) + jnp.zeros(*args)
+        loc = hk.get_parameter('loc', shape=self.prior.event_shape, init=init,dtype=jnp.float64)
+        log_var = hk.get_parameter('log_var', shape=self.prior.event_shape, init=scale_init,dtype=jnp.float64)
         scale = jnp.sqrt(jnp.exp(log_var))
         #scale=0.00001
 
@@ -91,8 +91,10 @@ class InhomogeneousPoissonProcess(NamedTuple):
 
     @property
     def distribution(self):
+        mix = jnp.sort(self.mix)
+
         return tfd.MixtureSameFamily(
-            mixture_distribution=tfd.Categorical(logits=self.mix),
+            mixture_distribution=tfd.Categorical(logits=mix),
             components_distribution=tfd.Logistic(loc=self.midpoints, scale=self.rates)
         )
 
@@ -107,31 +109,35 @@ class InhomogeneousPoissonProcess(NamedTuple):
         return jnp.sum(self.log_rate(events)) - \
                (self.cumulative_rate(events[-1]) - self.cumulative_rate(events[0]))
 
+def _ta(x):
+    '''Typed array'''
+    a = jnp.asarray(x)
+    return a.astype(jnp.float64)
 
 class LogisticGrowthSuperposition(hk.Module):
     def __init__(self, num_kl:int=4,name=None):
         super().__init__(name=name)
 
         self.maximum = NormalPosterior(
-            prior=(tfd.LogNormal(loc=[26,],scale=4.)),num_kl=num_kl,
+            prior=(tfd.LogNormal(loc=_ta(26),scale=_ta(4.))),num_kl=num_kl,
             initial=2.,
-            bijector=tfb.Chain([tfb.Scale(1e4),tfb.Softplus()]),
+            bijector=tfb.Chain([tfb.Scale(_ta(1e4)),tfb.Softplus()]),
             name = 'maximum'
         )
         self.midpoints= NormalPosterior(
-            prior=tfd.Sample( tfd.Normal(1e4,8e3),2 ),num_kl=num_kl,
+            prior=tfd.Sample( tfd.Normal(_ta(1e4),_ta(8e3)),2 ),num_kl=num_kl,
             initial=0.2,
-            bijector=tfb.Scale(1e4),
+            bijector=tfb.Scale(_ta(1e4)),
             name='midpoints'
         )
         self.rates = NormalPosterior(
-            prior=tfd.Sample( tfd.Exponential(9e-5),2 ),num_kl=num_kl,
-            bijector=tfb.Chain([tfb.Scale(1e4),tfb.Softplus()]),
+            prior=tfd.Sample( tfd.Exponential(_ta(9e-5)),2 ),num_kl=num_kl,
+            bijector=tfb.Chain([tfb.Scale(_ta(1e4)),tfb.Softplus()]),
             initial=10.,
             name='rates'
         )
         self.mix = NormalPosterior(
-            prior=tfd.Sample(tfd.Normal(0, 1.), 2),
+            prior=tfd.Sample(tfd.Normal(_ta(0), _ta(1.)), 2),
             num_kl=num_kl,
             name='mix'
         )
@@ -142,7 +148,7 @@ class LogisticGrowthSuperposition(hk.Module):
             maximum=self.maximum(),
             midpoints=self.midpoints(),
             rates=self.rates(),
-            mix = jnp.cumsum(self.mix(), axis=-1)
+            mix = self.mix()
         )
 
 
