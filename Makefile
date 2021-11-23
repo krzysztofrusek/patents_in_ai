@@ -249,7 +249,7 @@ time_evolution: paper2018 paper2019 paper2020
 
 
 trend:
-	PYTHONPATH=${PYTHONPATH} python3 code/logistic_growth.py --pickle dane/clean.pickle --nkl 8192 --steps 2000 --seed 22
+	PYTHONPATH=${PYTHONPATH} python3 code/logistic_growth.py --pickle dane/clean.pickle --nkl 8192 --steps 1000 --seed 122
 
 trend_local:
 	PYTHONPATH=${PYTHONPATH} python3 code/logistic_growth.py --pickle dane/clean.pickle --nkl 32 --steps 1000 --seed 22

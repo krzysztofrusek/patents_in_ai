@@ -203,9 +203,9 @@ def main(_):
             params, state = pickle.load(f)
 
     logging.info('midpoints')
-    logging.info((np.asarray(params['logistic_growth_superposition/~/midpoints']['loc']*13e3+7e3)).astype('datetime64[D]'))
+    logging.info((np.asarray(params['logistic_growth_superposition/~/midpoints']['loc']*1e4)).astype('datetime64[D]'))
     logging.info('+-')
-    logging.info(2*np.sqrt(np.exp(params['logistic_growth_superposition/~/midpoints']['log_var'])) * 13e3)
+    logging.info(2*np.sqrt(np.exp(params['logistic_growth_superposition/~/midpoints']['log_var'])) * 1e4)
 
     extra_time = np.linspace(events[-1],np.datetime64('2030-01-01').astype(np.float),100)
     plot_events = np.concatenate((events,extra_time))
