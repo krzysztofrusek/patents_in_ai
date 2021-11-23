@@ -125,15 +125,15 @@ class LogisticGrowthSuperposition(hk.Module):
             name = 'maximum'
         )
         self.midpoints= NormalPosterior(
-            prior=tfd.Sample( tfd.Normal(_ta(1e4),_ta(8e3)),2 ),num_kl=num_kl,
-            initial=0.2,
+            prior=tfd.Sample( tfd.Normal(_ta(15e3),_ta(20e3)),2 ),num_kl=num_kl,
+            initial=1.,
             bijector=tfb.Scale(_ta(1e4)),
             name='midpoints'
         )
         self.rates = NormalPosterior(
-            prior=tfd.Sample( tfd.Exponential(_ta(9e-5)),2 ),num_kl=num_kl,
+            prior=tfd.Sample( tfd.Exponential(_ta(1e-4)),2 ),num_kl=num_kl,
             bijector=tfb.Chain([tfb.Scale(_ta(1e4)),tfb.Softplus()]),
-            initial=10.,
+            initial=5.,
             name='rates'
         )
         self.mix = NormalPosterior(
@@ -208,16 +208,19 @@ def main(_):
         with open(os.path.join(FLAGS.out,'stat_params.pickle'),'rb') as f:
             params, state = pickle.load(f)
 
+    dist, _ = model.apply(params, state, rng)
+
     logging.info('midpoints')
-    logging.info((np.asarray(params['logistic_growth_superposition/~/midpoints']['loc']*1e4)).astype('datetime64[D]'))
+    logging.info(np.asarray(np.mean(dist.midpoints, axis=0)).astype('datetime64[D]'))
+
     logging.info('+-')
-    logging.info(2*np.sqrt(np.exp(params['logistic_growth_superposition/~/midpoints']['log_var'])) * 1e4)
+    logging.info(2*np.std(dist.midpoints, axis=0))
+
 
     extra_time = np.linspace(events[-1],np.datetime64('2030-01-01').astype(np.float),100)
     plot_events = np.concatenate((events,extra_time))
     plotx = plot_events.astype('datetime64[D]')
-    dist, _ = model.apply(params, state, rng)
-    logging.info(dist)
+
 
     @functools.partial(jax.vmap, in_axes=(0,None))
     def v_cum_rate(dist, t):
