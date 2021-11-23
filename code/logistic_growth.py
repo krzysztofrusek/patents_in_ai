@@ -24,6 +24,8 @@ from typing import NamedTuple
 from absl import flags, app, logging
 from tensorflow_probability.substrates import jax as tfp
 tfd = tfp.distributions
+tfb = tfp.bijectors
+
 import haiku as hk
 import data
 
@@ -68,7 +70,6 @@ class NormalPosterior(hk.Module):
 
         param = posterior.sample(self.num_kl, seed=hk.next_rng_key())
         kl = jnp.mean(posterior.log_prob(param)-self.prior.log_prob(param), axis=0)
-        #kl = jnp.mean(self.prior.log_prob(param)-posterior.log_prob(param) , axis=0)
         hk.set_state('kl',kl)
 
         return param
@@ -86,13 +87,13 @@ class InhomogeneousPoissonProcess(NamedTuple):
 
     @property
     def capacity(self):
-        return 1e4*self.maximum
+        return self.maximum
 
     @property
     def distribution(self):
         return tfd.MixtureSameFamily(
             mixture_distribution=tfd.Categorical(logits=self.mix),
-            components_distribution=tfd.Logistic(loc=self.midpoints*13e3+7e3, scale=self.rates*13e3)
+            components_distribution=tfd.Logistic(loc=self.midpoints, scale=self.rates)
         )
 
     def log_rate(self,events:jnp.ndarray):
@@ -111,17 +112,22 @@ class LogisticGrowthSuperposition(hk.Module):
     def __init__(self, num_kl:int=4,name=None):
         super().__init__(name=name)
 
-        self.maximum = SofplusNormalPosterior(
-            prior=tfd.LogNormal(loc=[5.0,], scale=2.),num_kl=num_kl,
+        self.maximum = NormalPosterior(
+            prior=(tfd.LogNormal(loc=[26,],scale=4.)),num_kl=num_kl,
             initial=2.,
+            bijector=tfb.Chain([tfb.Scale(1e4),tfb.Softplus()]),
             name = 'maximum'
         )
         self.midpoints= NormalPosterior(
-            prior=tfd.Sample( tfd.Normal(1.0,10.),2 ),num_kl=num_kl,
+            prior=tfd.Sample( tfd.Normal(1e4,8e3),2 ),num_kl=num_kl,
+            initial=0.2,
+            bijector=tfb.Scale(1e4),
             name='midpoints'
         )
-        self.rates = SofplusNormalPosterior(
-            prior=tfd.Sample( tfd.Exponential(0.5),2 ),num_kl=num_kl,
+        self.rates = NormalPosterior(
+            prior=tfd.Sample( tfd.Exponential(9e-5),2 ),num_kl=num_kl,
+            bijector=tfb.Chain([tfb.Scale(1e4),tfb.Softplus()]),
+            initial=10.,
             name='rates'
         )
         self.mix = NormalPosterior(
@@ -164,6 +170,7 @@ def main(_):
 
     new_key, rng = jax.random.split(rng,2)
     params, state = model.init(rng)
+    print(state)
 
 
     def elbo_loss(params, state, rng, t):
@@ -187,7 +194,7 @@ def main(_):
             params = optax.apply_updates(params, updates)
             if i % 10 ==0:
                 logging.info(f'step {i}, loss {loss_fn(params, state, new_key, train_events)}')
-            #print(params)
+                #print(params)
 
         with open(os.path.join(FLAGS.out, 'stat_params.pickle'), 'wb') as f:
             pickle.dump((params, state), f)
@@ -196,7 +203,7 @@ def main(_):
             params, state = pickle.load(f)
 
     logging.info('midpoints')
-    logging.info((params['logistic_growth_superposition/~/midpoints']['loc']*13e3+7e3).astype('datetime64[D]'))
+    logging.info((np.asarray(params['logistic_growth_superposition/~/midpoints']['loc']*13e3+7e3)).astype('datetime64[D]'))
     logging.info('+-')
     logging.info(2*np.sqrt(np.exp(params['logistic_growth_superposition/~/midpoints']['log_var'])) * 13e3)
 
