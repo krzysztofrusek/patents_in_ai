@@ -24,6 +24,8 @@ from typing import NamedTuple
 from absl import flags, app, logging
 from tensorflow_probability.substrates import jax as tfp
 tfd = tfp.distributions
+tfb = tfp.bijectors
+
 import haiku as hk
 import data
 
@@ -54,9 +56,9 @@ class NormalPosterior(hk.Module):
             init = lambda  *args: self.initial + jnp.zeros(*args)
         else:
             init = lambda  *args: jnp.mean(self.prior.mean()) + jnp.zeros(*args)
-        scale_init = lambda  *args: 2 + jnp.zeros(*args)
-        loc = hk.get_parameter('loc', shape=self.prior.event_shape, init=init)
-        log_var = hk.get_parameter('log_var', shape=self.prior.event_shape, init=scale_init)
+        scale_init = lambda  *args: _ta(2) + jnp.zeros(*args)
+        loc = hk.get_parameter('loc', shape=self.prior.event_shape, init=init,dtype=jnp.float64)
+        log_var = hk.get_parameter('log_var', shape=self.prior.event_shape, init=scale_init,dtype=jnp.float64)
         scale = jnp.sqrt(jnp.exp(log_var))
         #scale=0.00001
 
@@ -68,7 +70,6 @@ class NormalPosterior(hk.Module):
 
         param = posterior.sample(self.num_kl, seed=hk.next_rng_key())
         kl = jnp.mean(posterior.log_prob(param)-self.prior.log_prob(param), axis=0)
-        #kl = jnp.mean(self.prior.log_prob(param)-posterior.log_prob(param) , axis=0)
         hk.set_state('kl',kl)
 
         return param
@@ -86,13 +87,17 @@ class InhomogeneousPoissonProcess(NamedTuple):
 
     @property
     def capacity(self):
-        return 1e4*self.maximum
+        return self.maximum
 
     @property
     def distribution(self):
+        #mix = jnp.sort(self.mix)
+        #mix = jnp.cumsum(self.mix,axis=-1)
+        mix = self.mix
+
         return tfd.MixtureSameFamily(
-            mixture_distribution=tfd.Categorical(logits=self.mix),
-            components_distribution=tfd.Logistic(loc=self.midpoints*13e3+7e3, scale=self.rates*13e3)
+            mixture_distribution=tfd.Categorical(logits=mix),
+            components_distribution=tfd.Logistic(loc=self.midpoints, scale=self.rates)
         )
 
     def log_rate(self,events:jnp.ndarray):
@@ -106,26 +111,35 @@ class InhomogeneousPoissonProcess(NamedTuple):
         return jnp.sum(self.log_rate(events)) - \
                (self.cumulative_rate(events[-1]) - self.cumulative_rate(events[0]))
 
+def _ta(x):
+    '''Typed array'''
+    a = jnp.asarray(x)
+    return a.astype(jnp.float64)
 
 class LogisticGrowthSuperposition(hk.Module):
     def __init__(self, num_kl:int=4,name=None):
         super().__init__(name=name)
 
-        self.maximum = SofplusNormalPosterior(
-            prior=tfd.LogNormal(loc=[5.0,], scale=2.),num_kl=num_kl,
-            initial=2.,
+        self.maximum = NormalPosterior(
+            prior=(tfd.LogNormal(loc=_ta(26),scale=_ta(4.))),num_kl=num_kl,
+            initial=500.,
+            bijector=tfb.Chain([tfb.Scale(_ta(1e2)),tfb.Softplus()]),
             name = 'maximum'
         )
         self.midpoints= NormalPosterior(
-            prior=tfd.Sample( tfd.Normal(1.0,10.),2 ),num_kl=num_kl,
+            prior=tfd.Sample( tfd.Normal(_ta(0.5),_ta(1.)),2 ),num_kl=num_kl,
+            initial=0.5,
+            #bijector=tfb.Scale(_ta(1e4)),
             name='midpoints'
         )
-        self.rates = SofplusNormalPosterior(
-            prior=tfd.Sample( tfd.Exponential(0.5),2 ),num_kl=num_kl,
+        self.rates = NormalPosterior(
+            prior=tfd.Sample( tfd.Exponential(_ta(0.5)),2 ),num_kl=num_kl,
+            bijector=tfb.Chain([tfb.Softplus()]),
+            initial=5.,
             name='rates'
         )
         self.mix = NormalPosterior(
-            prior=tfd.Sample(tfd.Normal(0, 1.), 2),
+            prior=tfd.Sample(tfd.Normal(_ta(0), _ta(1.)), 2),
             num_kl=num_kl,
             name='mix'
         )
@@ -136,7 +150,7 @@ class LogisticGrowthSuperposition(hk.Module):
             maximum=self.maximum(),
             midpoints=self.midpoints(),
             rates=self.rates(),
-            mix = jnp.cumsum(self.mix(), axis=-1)
+            mix = self.mix()
         )
 
 
@@ -151,7 +165,8 @@ def main(_):
     train_test_date = np.datetime64('2020-09-01')
     last_idx = np.where(day_events<train_test_date)[0][-1]
 
-    train_events = events[:last_idx]
+    TIME_SCALE=1e4
+    train_events = events[:last_idx]/TIME_SCALE
 
     counts = np.cumsum(jnp.ones_like(events))
 
@@ -164,6 +179,7 @@ def main(_):
 
     new_key, rng = jax.random.split(rng,2)
     params, state = model.init(rng)
+    print(state)
 
 
     def elbo_loss(params, state, rng, t):
@@ -187,7 +203,7 @@ def main(_):
             params = optax.apply_updates(params, updates)
             if i % 10 ==0:
                 logging.info(f'step {i}, loss {loss_fn(params, state, new_key, train_events)}')
-            #print(params)
+                #print(params)
 
         with open(os.path.join(FLAGS.out, 'stat_params.pickle'), 'wb') as f:
             pickle.dump((params, state), f)
@@ -195,16 +211,19 @@ def main(_):
         with open(os.path.join(FLAGS.out,'stat_params.pickle'),'rb') as f:
             params, state = pickle.load(f)
 
-    logging.info('midpoints')
-    logging.info((params['logistic_growth_superposition/~/midpoints']['loc']*13e3+7e3).astype('datetime64[D]'))
-    logging.info('+-')
-    logging.info(2*np.sqrt(np.exp(params['logistic_growth_superposition/~/midpoints']['log_var'])) * 13e3)
-
-    extra_time = np.linspace(events[-1],np.datetime64('2030-01-01').astype(np.float),100)
-    plot_events = np.concatenate((events,extra_time))
-    plotx = plot_events.astype('datetime64[D]')
     dist, _ = model.apply(params, state, rng)
     logging.info(dist)
+    logging.info('midpoints')
+    logging.info(np.asarray(np.mean(dist.midpoints, axis=0)*1e4).astype('datetime64[D]'))
+
+    logging.info('+-')
+    logging.info(2*1e4*np.std(dist.midpoints, axis=0))
+
+
+    extra_time = np.linspace(events[-1],np.datetime64('2030-01-01').astype(np.float64),100)
+    plot_events = np.concatenate((events,extra_time))
+    plotx = plot_events.astype('datetime64[D]')
+
 
     @functools.partial(jax.vmap, in_axes=(0,None))
     def v_cum_rate(dist, t):
@@ -213,7 +232,7 @@ def main(_):
 
     v_log_rate = jax.vmap(InhomogeneousPoissonProcess.log_rate, in_axes=(0,None))
 
-    cum_rates = v_cum_rate(dist, plot_events)
+    cum_rates = v_cum_rate(dist, plot_events/TIME_SCALE)
     rates = jnp.exp(v_log_rate(dist, plot_events))
 
     mean_cum_rate = jnp.mean(cum_rates, axis=0)
@@ -243,8 +262,8 @@ def main(_):
     f = plt.figure()
 
     for i in range(2):
-        rates = rate_component(dist,plot_events,i)
-        plt.plot(plot_events, np.mean(rates, axis=0),label=f'$\lambda_{i+1}(t)$')
+        rates = rate_component(dist,plot_events/TIME_SCALE,i)
+        plt.plot(plot_events, np.mean(rates, axis=0)/TIME_SCALE,label=f'$\lambda_{i+1}(t)$')
         cl, ch = np.quantile(rates, q=[0.025, 0.975], axis=0)
         plt.fill_between(plotx, cl, ch, alpha=0.3, label=r'95 % interval')
 
