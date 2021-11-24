@@ -91,7 +91,9 @@ class InhomogeneousPoissonProcess(NamedTuple):
 
     @property
     def distribution(self):
-        mix = jnp.sort(self.mix)
+        #mix = jnp.sort(self.mix)
+        #mix = jnp.cumsum(self.mix,axis=-1)
+        mix = self.mix
 
         return tfd.MixtureSameFamily(
             mixture_distribution=tfd.Categorical(logits=mix),
@@ -120,19 +122,19 @@ class LogisticGrowthSuperposition(hk.Module):
 
         self.maximum = NormalPosterior(
             prior=(tfd.LogNormal(loc=_ta(26),scale=_ta(4.))),num_kl=num_kl,
-            initial=2.,
-            bijector=tfb.Chain([tfb.Scale(_ta(1e4)),tfb.Softplus()]),
+            initial=500.,
+            bijector=tfb.Chain([tfb.Scale(_ta(1e2)),tfb.Softplus()]),
             name = 'maximum'
         )
         self.midpoints= NormalPosterior(
-            prior=tfd.Sample( tfd.Normal(_ta(15e3),_ta(20e3)),2 ),num_kl=num_kl,
-            initial=1.,
-            bijector=tfb.Scale(_ta(1e4)),
+            prior=tfd.Sample( tfd.Normal(_ta(0.5),_ta(1.)),2 ),num_kl=num_kl,
+            initial=0.5,
+            #bijector=tfb.Scale(_ta(1e4)),
             name='midpoints'
         )
         self.rates = NormalPosterior(
-            prior=tfd.Sample( tfd.Exponential(_ta(1e-4)),2 ),num_kl=num_kl,
-            bijector=tfb.Chain([tfb.Scale(_ta(1e4)),tfb.Softplus()]),
+            prior=tfd.Sample( tfd.Exponential(_ta(0.5)),2 ),num_kl=num_kl,
+            bijector=tfb.Chain([tfb.Softplus()]),
             initial=5.,
             name='rates'
         )
@@ -163,7 +165,8 @@ def main(_):
     train_test_date = np.datetime64('2020-09-01')
     last_idx = np.where(day_events<train_test_date)[0][-1]
 
-    train_events = events[:last_idx]
+    TIME_SCALE=1e4
+    train_events = events[:last_idx]/TIME_SCALE
 
     counts = np.cumsum(jnp.ones_like(events))
 
@@ -209,15 +212,15 @@ def main(_):
             params, state = pickle.load(f)
 
     dist, _ = model.apply(params, state, rng)
-
+    logging.info(dist)
     logging.info('midpoints')
-    logging.info(np.asarray(np.mean(dist.midpoints, axis=0)).astype('datetime64[D]'))
+    logging.info(np.asarray(np.mean(dist.midpoints, axis=0)*1e4).astype('datetime64[D]'))
 
     logging.info('+-')
-    logging.info(2*np.std(dist.midpoints, axis=0))
+    logging.info(2*1e4*np.std(dist.midpoints, axis=0))
 
 
-    extra_time = np.linspace(events[-1],np.datetime64('2030-01-01').astype(np.float),100)
+    extra_time = np.linspace(events[-1],np.datetime64('2030-01-01').astype(np.float64),100)
     plot_events = np.concatenate((events,extra_time))
     plotx = plot_events.astype('datetime64[D]')
 
@@ -229,7 +232,7 @@ def main(_):
 
     v_log_rate = jax.vmap(InhomogeneousPoissonProcess.log_rate, in_axes=(0,None))
 
-    cum_rates = v_cum_rate(dist, plot_events)
+    cum_rates = v_cum_rate(dist, plot_events/TIME_SCALE)
     rates = jnp.exp(v_log_rate(dist, plot_events))
 
     mean_cum_rate = jnp.mean(cum_rates, axis=0)
@@ -259,8 +262,8 @@ def main(_):
     f = plt.figure()
 
     for i in range(2):
-        rates = rate_component(dist,plot_events,i)
-        plt.plot(plot_events, np.mean(rates, axis=0),label=f'$\lambda_{i+1}(t)$')
+        rates = rate_component(dist,plot_events/TIME_SCALE,i)
+        plt.plot(plot_events, np.mean(rates, axis=0)/TIME_SCALE,label=f'$\lambda_{i+1}(t)$')
         cl, ch = np.quantile(rates, q=[0.025, 0.975], axis=0)
         plt.fill_between(plotx, cl, ch, alpha=0.3, label=r'95 % interval')
 
