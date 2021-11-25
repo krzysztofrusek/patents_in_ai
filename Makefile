@@ -252,7 +252,7 @@ trend:
 	PYTHONPATH=${PYTHONPATH} python3 code/logistic_growth.py --pickle dane/clean.pickle --nkl 16384 --steps 1000 --seed 16917 # --nocoldstart
 
 trend_local:
-	PYTHONPATH=${PYTHONPATH} python3 code/logistic_growth.py --pickle dane/clean.pickle --nkl 120 --steps 1000 --seed 22
+	PYTHONPATH=${PYTHONPATH} python3 code/logistic_growth.py --pickle dane/clean.pickle --nkl 120 --steps 500 --seed 22
 
 gen/trends/% :
 	mkdir -p $@

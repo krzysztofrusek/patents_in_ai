@@ -1,6 +1,7 @@
 import os.path
 import pickle
 
+import pandas as pd
 from jax.config import config
 
 from util import plot_config
@@ -167,6 +168,7 @@ def main(_):
 
     TIME_SCALE=1e4
     train_events = events[:last_idx]/TIME_SCALE
+    test_events = events[last_idx:]/TIME_SCALE
 
     counts = np.cumsum(jnp.ones_like(events))
 
@@ -189,11 +191,19 @@ def main(_):
             hk.data_structures.filter(lambda module_name, name, value: name == 'kl', state)))
         return (nll + total_kl)
 
+    @jax.jit
+    def enll(params, state, rng, t):
+        dist, state = model.apply(params, state, rng)
+        nll = -jnp.mean(dist.log_prob(t))
+
+        return nll
+
     grad_fn = jax.jit(jax.grad(elbo_loss))
     loss_fn = jax.jit(elbo_loss)
 
     opt = optax.adam(0.08)
     opt_state = opt.init(params)
+    eval_stats=[]
 
     if FLAGS.coldstart:
         for i in range(FLAGS.steps):
@@ -203,10 +213,23 @@ def main(_):
             params = optax.apply_updates(params, updates)
             if i % 10 ==0:
                 logging.info(f'step {i}, loss {loss_fn(params, state, new_key, train_events)}')
+                expected_train_nll = enll(params, state, new_key, train_events)
+                expected_test_nll = enll(params, state, new_key, test_events)
+                logging.info(f'step {i}, train nll {expected_train_nll}, test nll {expected_test_nll}')
+                eval_stats.append(dict(step=i,expected_train_nll=expected_train_nll,expected_test_nll=expected_test_nll))
                 #print(params)
 
         with open(os.path.join(FLAGS.out, 'stat_params.pickle'), 'wb') as f:
             pickle.dump((params, state), f)
+
+        df = pd.DataFrame(eval_stats)
+        f=plt.figure()
+        plt.plot(df['step'],df['expected_train_nll'],label='expected_train_nll')
+        plt.plot(df['step'], df['expected_test_nll'], label='expected_test_nll')
+        plt.legend()
+        plt.savefig(os.path.join(FLAGS.out, 'nll.pdf'))
+        plt.close(f)
+        df.to_csv(os.path.join(FLAGS.out, 'nll.csv'))
     else:
         with open(os.path.join(FLAGS.out,'stat_params.pickle'),'rb') as f:
             params, state = pickle.load(f)
@@ -262,8 +285,8 @@ def main(_):
     f = plt.figure()
 
     for i in range(2):
-        rates = rate_component(dist,plot_events/TIME_SCALE,i)
-        plt.plot(plot_events, np.mean(rates, axis=0)/TIME_SCALE,label=f'$\lambda_{i+1}(t)$')
+        rates = rate_component(dist,plot_events/TIME_SCALE,i)/TIME_SCALE
+        plt.plot(plot_events, np.mean(rates, axis=0),label=f'$\lambda_{i+1}(t)$')
         cl, ch = np.quantile(rates, q=[0.025, 0.975], axis=0)
         plt.fill_between(plotx, cl, ch, alpha=0.3, label=r'95 % interval')
 
