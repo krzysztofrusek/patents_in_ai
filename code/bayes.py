@@ -27,7 +27,7 @@ flags.DEFINE_integer("num_burnin_steps", 2, "...")
 flags.DEFINE_string('tag', "samples.pkl", "Name of the run and output file")
 flags.DEFINE_integer('toyear', 2021, "Run analysis up to year")
 flags.DEFINE_string('priorsample', None, "prior samples from other experiment")
-flags.DEFINE_float('loglambda_zero')
+flags.DEFINE_float('loglambda_zero',-8., '...')
 
 Root = tfd.JointDistributionCoroutine.Root
 

@@ -18,7 +18,6 @@ from util import plot_config
 FLAGS= flags.FLAGS
 flags.DEFINE_string("mcmcpickle", "../gen/mcmc3/samples.pkl", "Input file")
 flags.DEFINE_string("paperdir", "../gen/paper", "out dir")
-flags.DEFINE_string('trend_pickle','../plg/trends/16917')
 
 
 class BayesResults:
@@ -27,7 +26,7 @@ class BayesResults:
             samples = pickle.load(f)
         all_long = np.reshape(np.concatenate(samples, axis=-1), (-1, 8))
         self.all_long_df = pd.DataFrame(all_long,
-                                   columns=['$\alpha_1$', '$\alpha_2$', '$\beta_1$', '$\beta_2$', '$\beta_0$', '$l_0$', '$l_1$', '$l_2$'])
+                                   columns=[r'$\alpha_1$', r'$\alpha_2$', r'$\beta_1$', r'$\beta_2$', r'$\beta_0$', r'$l_0$', r'$l_1$', r'$l_2$'])
         self.samples = samples
 
 
@@ -46,6 +45,9 @@ class BayesResults:
         plt.tight_layout()
         if save_to:
             plt.savefig(os.path.join(save_to,'params.pdf'))
+            tex = pd.melt(self.all_long_df).groupby(by='variable').agg(['mean', 'std']).T.to_latex(float_format='%.3f')
+            with open(os.path.join(save_to,'params.tex'),'wt') as f:
+                f.write(tex)
         else:
             plt.show()
         return
