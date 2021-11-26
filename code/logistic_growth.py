@@ -95,6 +95,8 @@ class InhomogeneousPoissonProcess(NamedTuple):
         #mix = jnp.sort(self.mix)
         #mix = jnp.cumsum(self.mix,axis=-1)
         mix = self.mix
+        zero = jnp.zeros_like(mix)
+        mix = jnp.concatenate([mix,zero], axis=-1)
 
         return tfd.MixtureSameFamily(
             mixture_distribution=tfd.Categorical(logits=mix),
@@ -134,13 +136,13 @@ class LogisticGrowthSuperposition(hk.Module):
             name='midpoints'
         )
         self.rates = NormalPosterior(
-            prior=tfd.Sample( tfd.Exponential(_ta(0.5)),2 ),num_kl=num_kl,
+            prior=tfd.Sample( tfd.Exponential(_ta(0.2)),2 ),num_kl=num_kl,
             bijector=tfb.Chain([tfb.Softplus()]),
             initial=5.,
             name='rates'
         )
         self.mix = NormalPosterior(
-            prior=tfd.Sample(tfd.Normal(_ta(0), _ta(1.)), 2),
+            prior=tfd.Sample(tfd.Normal(_ta(1), _ta(1.)), 1),
             num_kl=num_kl,
             name='mix'
         )
