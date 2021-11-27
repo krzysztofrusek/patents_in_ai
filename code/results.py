@@ -45,7 +45,7 @@ class BayesResults:
         plt.tight_layout()
         if save_to:
             plt.savefig(os.path.join(save_to,'params.pdf'))
-            tex = pd.melt(self.all_long_df).groupby(by='variable').agg(['mean', 'std']).T.to_latex(float_format='%.3f')
+            tex = pd.melt(self.all_long_df).groupby(by='variable').agg(['mean', 'std']).T.to_latex(float_format='%.3f',escape=False)
             with open(os.path.join(save_to,'params.tex'),'wt') as f:
                 f.write(tex)
         else:

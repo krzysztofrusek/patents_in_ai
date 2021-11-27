@@ -238,6 +238,27 @@ def main(_):
 
     dist, _ = model.apply(params, state, rng)
     logging.info(dist)
+    df = pd.DataFrame(np.concatenate(dist[1:], axis=1),columns=[r'$t_{0,1}$',r'$t_{0,2}$',r'$s_{1}$',r'$s_{2}$',r'$p_{1}$'])
+    df['$C$']=dist.capacity
+    df[r'$p_{1}$'] = jax.nn.sigmoid(df[r'$p_{1}$'])
+    df.iloc[:, :4] = (TIME_SCALE * df.iloc[:, :4])
+    df.iloc[:, :2] = df.iloc[:, :2].astype('datetime64[D]')
+    df.iloc[:, 2:4] = df.iloc[:, 2:4].astype('timedelta64[D]')
+
+    try:
+        means = df.mean(axis=0, numeric_only=False)
+        stds=df.std(axis=0, numeric_only=False)
+
+        means['stat']='mean'
+        stds['stat'] = 'std'
+        tex = pd.concat([means, stds], axis=1).T.to_latex(escape=False)
+
+        with open(os.path.join(FLAGS.out,'params.tex'), 'wt') as f:
+            f.write(tex)
+    except:
+        pass
+
+
     logging.info('midpoints')
     logging.info(np.asarray(np.mean(dist.midpoints, axis=0)*1e4).astype('datetime64[D]'))
 
