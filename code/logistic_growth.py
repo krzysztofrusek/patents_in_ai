@@ -130,8 +130,8 @@ class LogisticGrowthSuperposition(hk.Module):
             name = 'maximum'
         )
         self.midpoints= NormalPosterior(
-            prior=tfd.Sample( tfd.Normal(_ta(0.5),_ta(1.)),2 ),num_kl=num_kl,
-            initial=0.5,
+            prior=tfd.Sample( tfd.Normal(_ta(1.5),_ta(1.)),2 ),num_kl=num_kl,
+            initial=1.5,
             #bijector=tfb.Scale(_ta(1e4)),
             name='midpoints'
         )
