@@ -21,7 +21,6 @@ flags.DEFINE_string("mcmcpickle", "../gen/mcmc3/samples.pkl", "Input file")
 flags.DEFINE_string("paperdir", "../gen/paper", "out dir")
 
 def main(_):
-    mpl.use('MacOSX')
     clean_df = data.load_clean(FLAGS.pickle)
     clean_df = clean_df[clean_df.publication_date.dt.year <= FLAGS.toyear]
     fractions = data.fractions_countries(clean_df, with_others=True)
