@@ -36,6 +36,7 @@ flags.DEFINE_integer("steps", 100, "num samples for kl")
 flags.DEFINE_integer("seed", 1000, "initial seed")
 flags.DEFINE_string("out", "out", "Output directory")
 flags.DEFINE_bool("coldstart", True, "train or restore files and plot results")
+flags.DEFINE_string("train_test_date", '2020-09-01', 'date for train test spit')
 
 FLAGS= flags.FLAGS
 
@@ -168,7 +169,7 @@ def main(_):
     day_events = clean_df.publication_date.sort_values().to_numpy().astype('datetime64[D]')
     events=day_events.astype(np.float64)
 
-    train_test_date = np.datetime64('2020-09-01')
+    train_test_date = np.datetime64(FLAGS.train_test_date)
     last_idx = np.where(day_events<train_test_date)[0][-1]
 
     TIME_SCALE=1e4
@@ -269,7 +270,7 @@ def main(_):
     logging.info(2*1e4*np.std(dist.midpoints, axis=0))
 
 
-    extra_time = np.linspace(events[-1],np.datetime64('2030-01-01').astype(np.float64),100)
+    extra_time = np.linspace(events[-1],np.datetime64('2035-01-01').astype(np.float64),100)
     plot_events = np.concatenate((events,extra_time))
     plotx = plot_events.astype('datetime64[D]')
 
