@@ -79,6 +79,32 @@ mcmc3:
 		--num_adaptation 16000 \
 		--num_burnin_steps 16000
 
+mcmc4:
+	mkdir -p gen/$@
+	python3 code/bayes.py \
+		--pickle dane/clean_3part.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--num_results 4000 \
+		--num_chains 16 \
+		--num_adaptation 16000 \
+		--num_burnin_steps 16000
+
+mcmc_inv:
+	mkdir -p gen/$@
+	python3 code/bayes.py \
+		--pickle dane/clean_inv.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--num_results 4000 \
+		--num_chains 16 \
+		--num_adaptation 16000 \
+		--num_burnin_steps 16000
+
 test_mcmc:
 	mkdir -p gen/$@
 	python3 code/bayes.py \
@@ -270,21 +296,32 @@ gen/trends/paper :
 		--nkl 16384 \
 		--steps 1000 \
 		--seed 792848 \
+		--train_test_date="2020-09-01" \
 		--out $@
 
-gen/trends/review :
+gen/trends/review_old_data :
 	mkdir -p $@
 	PYTHONPATH=${PYTHONPATH} python3 code/logistic_growth.py \
-		--pickle dane/clean_update.pickle \
+		--pickle dane/clean.pickle \
 		--nkl 16384 \
 		--steps 1000 \
 		--seed 792848 \
 		--out $@
 
+gen/trends/review :
+	mkdir -p $@
+	PYTHONPATH=${PYTHONPATH} python3 code/logistic_growth.py \
+		--pickle dane/clean_3part.pickle \
+		--nkl 16384 \
+		--steps 1000 \
+		--seed 792848 \
+		--out $@
+
+# To jest ok do puibliakcji
 gen/trends/review2 :
 	mkdir -p $@
 	PYTHONPATH=${PYTHONPATH} python3 code/logistic_growth.py \
-		--pickle dane/clean_update.pickle \
+		--pickle dane/clean_3part.pickle \
 		--nkl 16384 \
 		--steps 1000 \
 		--seed 792848 \
@@ -294,7 +331,7 @@ gen/trends/review2 :
 gen/trends/review3 :
 	mkdir -p $@
 	PYTHONPATH=${PYTHONPATH} python3 code/logistic_growth.py \
-		--pickle dane/clean_update.pickle \
+		--pickle dane/clean_3part.pickle \
 		--nkl 16384 \
 		--steps 1000 \
 		--seed 792848 \
@@ -304,7 +341,7 @@ gen/trends/review3 :
 seeded_trends: gen/trends/982995 gen/trends/127445 gen/trends/635725 gen/trends/792848 gen/trends/16917 gen/trends/773737 gen/trends/979000  gen/trends/318589
 
 paper_trends: gen/trends/paper
-review_trends: gen/trends/review gen/trends/review2 gen/trends/review3
+review_trends: gen/trends/review gen/trends/review2 gen/trends/review3 gen/trends/review_old_data
 
 from_plg_trend:
 	rsync -av --inplace  '$(PLG_PATH)/gen/trends' plg/
