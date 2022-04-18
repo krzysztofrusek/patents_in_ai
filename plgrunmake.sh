@@ -14,7 +14,7 @@
 cd $SCRATCH/patenty
 
 export XLA_FLAGS=--xla_gpu_cuda_data_dir=/net/software/local/cuda/11.2
-module load plgrid/libs/tensorflow-gpu/2.6.0-python-3.9
-module load plgrid/tools/python/3.9
+module load plgrid/libs/tensorflow-gpu/2.8.0-python-3.9
+#module load plgrid/tools/python/3.9
 
 make "$SLURM_JOB_NAME"

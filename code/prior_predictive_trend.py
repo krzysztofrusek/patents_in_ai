@@ -70,7 +70,7 @@ def main(_):
     params, state = model.init(rng)
 
     prior=tfd.JointDistributionNamed({
-        'maximum':tfd.LogNormal(loc=_ta(26),scale=_ta(4.)),
+        'maximum':tfd.Pareto(1.3, 10759.),#tfd.LogNormal(loc=_ta(26),scale=_ta(4.)),
         'midpoints':tfd.Sample( tfd.Normal(_ta(1.5),_ta(1.)),2 ),
         'rates':tfd.Sample( tfd.Exponential(_ta(0.2)),2 ),
         'mix':tfd.Sample(tfd.Normal(_ta(1), _ta(1.)), 1)

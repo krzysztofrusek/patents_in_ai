@@ -272,8 +272,18 @@ gen/trends/paper :
 		--seed 792848 \
 		--out $@
 
+gen/trends/review :
+	mkdir -p $@
+	PYTHONPATH=${PYTHONPATH} python3 code/logistic_growth.py \
+		--pickle dane/clean.pickle \
+		--nkl 16384 \
+		--steps 1000 \
+		--seed 792848 \
+		--out $@
+
 seeded_trends: gen/trends/982995 gen/trends/127445 gen/trends/635725 gen/trends/792848 gen/trends/16917 gen/trends/773737 gen/trends/979000  gen/trends/318589
 paper_trends: gen/trends/paper
+review_trends: gen/trends/review
 
 from_plg_trend:
 	rsync -av --inplace  '$(PLG_PATH)/gen/trends' plg/

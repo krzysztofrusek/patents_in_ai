@@ -32,7 +32,7 @@ import data
 
 flags.DEFINE_string("pickle", "../dane/clean.pickle", "Input file")
 flags.DEFINE_integer("nkl", 8, "num samples for kl")
-flags.DEFINE_integer("steps", 1000, "num samples for kl")
+flags.DEFINE_integer("steps", 100, "num samples for kl")
 flags.DEFINE_integer("seed", 1000, "initial seed")
 flags.DEFINE_string("out", "out", "Output directory")
 flags.DEFINE_bool("coldstart", True, "train or restore files and plot results")
@@ -124,9 +124,12 @@ class LogisticGrowthSuperposition(hk.Module):
         super().__init__(name=name)
 
         self.maximum = NormalPosterior(
-            prior=(tfd.LogNormal(loc=_ta(26),scale=_ta(4.))),num_kl=num_kl,
+            #prior=(tfd.LogNormal(loc=_ta(26),scale=_ta(4.))),
+            prior=tfd.Pareto(_ta(1.3), _ta(11e3)),
+            num_kl=num_kl,
             initial=500.,
-            bijector=tfb.Chain([tfb.Scale(_ta(1e2)),tfb.Softplus()]),
+            #bijector=tfb.Chain([tfb.Scale(_ta(1e2)),tfb.Softplus()]),
+            bijector=tfb.Chain([tfb.Shift(_ta(11e3)),tfb.Softplus(),tfb.Scale(_ta(1e2))]),
             name = 'maximum'
         )
         self.midpoints= NormalPosterior(
@@ -240,7 +243,7 @@ def main(_):
     logging.info(dist)
     df = pd.DataFrame(np.concatenate(dist[1:], axis=1),columns=[r'$t_{0,1}$',r'$t_{0,2}$',r'$s_{1}$',r'$s_{2}$',r'$p_{1}$'])
     df['$C$']=dist.capacity
-    df[r'$p_{1}$'] = jax.nn.sigmoid(df[r'$p_{1}$'])
+    df[r'$p_{1}$'] = jax.nn.sigmoid(df[r'$p_{1}$'].to_numpy())
     df.iloc[:, :4] = (TIME_SCALE * df.iloc[:, :4])
     df.iloc[:, :2] = df.iloc[:, :2].astype('datetime64[D]')
     df.iloc[:, 2:4] = df.iloc[:, 2:4].astype('timedelta64[D]')
