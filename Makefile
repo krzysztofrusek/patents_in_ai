@@ -79,6 +79,7 @@ mcmc3:
 		--num_adaptation 16000 \
 		--num_burnin_steps 16000
 
+# Wyniki powtarzalne, ale beta-0 czasamai dodatnie
 mcmc4:
 	mkdir -p gen/$@
 	python3 code/bayes.py \
@@ -91,6 +92,20 @@ mcmc4:
 		--num_chains 16 \
 		--num_adaptation 16000 \
 		--num_burnin_steps 16000
+
+mcmc5:
+	mkdir -p gen/$@
+	python3 code/bayes.py \
+		--pickle dane/clean_3part.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--num_results 4000 \
+		--num_chains 16 \
+		--num_adaptation 16000 \
+		--num_burnin_steps 16000 \
+		--loglambda_zero -12.0
 
 mcmc_inv:
 	mkdir -p gen/$@
@@ -131,7 +146,27 @@ paper:
 		--paperdir gen/$@ \
 		--mcmcpickle gen/mcmc3/samples.pkl
 
+paper_review_mc4:
+	mkdir -p gen/$@
+	python3 code/results.py \
+		--pickle dane/clean_3part.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--paperdir gen/$@ \
+		--mcmcpickle gen/mcmc4/samples.pkl
 
+paper_review_inv:
+	mkdir -p gen/$@
+	python3 code/results.py \
+		--pickle dane/clean_inv.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--paperdir gen/$@ \
+		--mcmcpickle gen/mcmc_inv/samples.pkl
 # ANlizy czasowe
 
 
