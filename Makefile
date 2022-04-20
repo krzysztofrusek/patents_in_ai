@@ -384,11 +384,31 @@ gen/trends/review3 :
 		--train_test_date="2021-09-01" \
 		--out $@
 
+gen/trends/review4 :
+	mkdir -p $@
+	PYTHONPATH=${PYTHONPATH} python3 code/logistic_growth.py \
+		--pickle dane/clean_3part.pickle \
+		--nkl 16384 \
+		--steps 200 \
+		--seed 792848 \
+		--train_test_date="2021-09-01" \
+		--out $@
+
+gen/trends/review5 :
+	mkdir -p $@
+	PYTHONPATH=${PYTHONPATH} python3 code/logistic_growth.py \
+		--pickle dane/clean_3part.pickle \
+		--nkl 20000 \
+		--steps 3000 \
+		--seed 792848 \
+		--train_test_date="2021-09-01" \
+		--out $@
+
 seeded_trends: gen/trends/982995 gen/trends/127445 gen/trends/635725 gen/trends/792848 gen/trends/16917 gen/trends/773737 gen/trends/979000  gen/trends/318589
 seeded_trendsr: gen/trends/982991 gen/trends/127441 gen/trends/635721
 
 paper_trends: gen/trends/paper
-review_trends: gen/trends/review gen/trends/review2 gen/trends/review3 gen/trends/review_old_data
+review_trends: gen/trends/review gen/trends/review2 gen/trends/review3 gen/trends/review_old_data gen/trends/review4 gen/trends/review5
 
 from_plg_trend:
 	rsync -av --inplace  '$(PLG_PATH)/gen/trends' plg/
