@@ -294,6 +294,7 @@ def main(_):
     plt.fill_between(plotx,cl,ch,alpha=0.5, label=r'95 % interval')
 
     plt.axvline(train_test_date, linestyle=':', color='k',label='train end')
+    plt.ylabel('Patents')
 
     plt.legend()
     plt.yscale('log')
@@ -321,6 +322,7 @@ def main(_):
     plt.axvline(alexnet_date, linestyle=':', color='grey',label='alexnet')
     plt.axvline(train_test_date, linestyle=':', color='k', label='train end')
     plt.axvline(day_events[-1],linestyle='-.', color='grey', label='data end')
+    plt.ylabel('Rate [patents per day]')
     plt.legend()
 
     plt.savefig(os.path.join(FLAGS.out,'rate.pdf'))

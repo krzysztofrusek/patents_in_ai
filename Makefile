@@ -25,7 +25,7 @@ to_plg_code:
 to_plg: to_plg_data to_plg_code
 
 from_plg:
-	rsync -av --inplace --exclude '*.out' --exclude '*.err' '$(PLG_PATH)/checkpoint' plg/
+	rsync -av --inplace --exclude '*.out' --exclude '*.err' '$(PLG_PATH)/gen/' plg/
 
 
 3comp_others:
@@ -156,6 +156,17 @@ paper_review_mc4:
 		--feature_type ALL \
 		--paperdir gen/$@ \
 		--mcmcpickle gen/mcmc4/samples.pkl
+
+paper_review_mc5:
+	mkdir -p gen/$@
+	python3 code/results.py \
+		--pickle dane/clean_3part.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--paperdir gen/$@ \
+		--mcmcpickle gen/mcmc5/samples.pkl
 
 paper_review_inv:
 	mkdir -p gen/$@
@@ -346,7 +357,7 @@ gen/trends/review_old_data :
 gen/trends/review :
 	mkdir -p $@
 	PYTHONPATH=${PYTHONPATH} python3 code/logistic_growth.py \
-		--pickle dane/clean_3part.pickle \
+		--pickle dane/clean.pickle \
 		--nkl 16384 \
 		--steps 1000 \
 		--seed 792848 \
@@ -374,6 +385,7 @@ gen/trends/review3 :
 		--out $@
 
 seeded_trends: gen/trends/982995 gen/trends/127445 gen/trends/635725 gen/trends/792848 gen/trends/16917 gen/trends/773737 gen/trends/979000  gen/trends/318589
+seeded_trendsr: gen/trends/982991 gen/trends/127441 gen/trends/635721
 
 paper_trends: gen/trends/paper
 review_trends: gen/trends/review gen/trends/review2 gen/trends/review3 gen/trends/review_old_data
