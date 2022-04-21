@@ -120,6 +120,34 @@ mcmc_inv:
 		--num_adaptation 16000 \
 		--num_burnin_steps 16000
 
+mcmc_inv_s05:
+	mkdir -p gen/$@
+	python3 code/bayes.py \
+		--pickle dane/clean_inv.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--num_results 4000 \
+		--num_chains 16 \
+		--num_adaptation 16000 \
+		--num_burnin_steps 16000 \
+		--scale_scale 0.5
+
+mcmc_inv_s20:
+	mkdir -p gen/$@
+	python3 code/bayes.py \
+		--pickle dane/clean_inv.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--num_results 4000 \
+		--num_chains 16 \
+		--num_adaptation 16000 \
+		--num_burnin_steps 16000 \
+		--scale_scale 2.0
+
 test_mcmc:
 	mkdir -p gen/$@
 	python3 code/bayes.py \
@@ -178,6 +206,8 @@ paper_review_inv:
 		--feature_type ALL \
 		--paperdir gen/$@ \
 		--mcmcpickle gen/mcmc_inv/samples.pkl
+
+
 # ANlizy czasowe
 
 

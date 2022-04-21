@@ -28,6 +28,7 @@ flags.DEFINE_string('tag', "samples.pkl", "Name of the run and output file")
 flags.DEFINE_integer('toyear', 2021, "Run analysis up to year")
 flags.DEFINE_string('priorsample', None, "prior samples from other experiment")
 flags.DEFINE_float('loglambda_zero',-8., '...')
+flags.DEFINE_float('scale_scale',1., 'prior scale scaling factor')
 
 Root = tfd.JointDistributionCoroutine.Root
 
@@ -81,7 +82,7 @@ def load_mcmc(path:str)->np.array:
     return None
 
 
-def poisson_mixture_regression(x:Any,nnz:int=2,prior_samples:Any=None,llz:float=-8 ):
+def poisson_mixture_regression(x:Any,nnz:int=2,prior_samples:Any=None,llz:float=-8 , scale_scale:float=1.):
     @tfd.JointDistributionCoroutine
     def model():
         _x = tf.convert_to_tensor(x)
@@ -96,10 +97,10 @@ def poisson_mixture_regression(x:Any,nnz:int=2,prior_samples:Any=None,llz:float=
             c0 = yield Root(tfd.Independent(tfd.Normal(loc=tensor(means[2]), scale=tensor(stds[2])), 2, name='c0'))
             logits = yield Root(tfd.Independent(tfd.Normal(loc=tensor(means[3]), scale=tensor(stds[3])), 2, name='logits'))
         else:
-            w = yield  Root(tfd.Sample(tfd.Normal(loc=tensor(0.5), scale=tensor(0.5)), (1,nnz),name='w'))
-            c = yield Root(tfd.Sample(tfd.Normal(loc=tensor(-8.), scale=tensor(3.)), (1,nnz),name='c'))
-            c0 = yield Root(tfd.Sample(tfd.Normal(loc=tensor(llz), scale=tensor(3.)), (1, 1), name='c0'))
-            logits = yield Root(tfd.Sample(tfd.Normal(loc=tensor(0), scale=tensor(2.)),(1,nnz+1),name='logits'))
+            w = yield  Root(tfd.Sample(tfd.Normal(loc=tensor(0.5), scale=tensor(0.5*scale_scale)), (1,nnz),name='w'))
+            c = yield Root(tfd.Sample(tfd.Normal(loc=tensor(-8.), scale=tensor(3.*scale_scale)), (1,nnz),name='c'))
+            c0 = yield Root(tfd.Sample(tfd.Normal(loc=tensor(llz), scale=tensor(3.*scale_scale)), (1, 1), name='c0'))
+            logits = yield Root(tfd.Sample(tfd.Normal(loc=tensor(0), scale=tensor(2.*scale_scale)),(1,nnz+1),name='logits'))
 
         log_rate_nnz = _x@w+c
         log_rate0 = tf.broadcast_to(c0,log_rate_nnz.shape[:-1]+[1])
@@ -179,7 +180,8 @@ def main(_):
         np.broadcast_to(_x,[n_batch]+list(_x.shape)),
         nnz,
         prior_samples=load_mcmc(FLAGS.priorsample),
-        llz=FLAGS.loglambda_zero
+        llz=FLAGS.loglambda_zero,
+        scale_scale=FLAGS.scale_scale
     )
 
     _y = np.broadcast_to(dataset.y,[n_batch]+list(dataset.y.shape))
