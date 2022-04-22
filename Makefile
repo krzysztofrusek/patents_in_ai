@@ -148,6 +148,33 @@ mcmc_inv_s20:
 		--num_burnin_steps 16000 \
 		--scale_scale 2.0
 
+mcmc3_s05:
+	mkdir -p gen/$@
+	python3 code/bayes.py \
+		--pickle dane/clean.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--num_results 4000 \
+		--num_chains 16 \
+		--num_adaptation 16000 \
+		--num_burnin_steps 16000 \
+		--scale_scale 0.5
+mcmc3_s20:
+	mkdir -p gen/$@
+	python3 code/bayes.py \
+		--pickle dane/clean.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--num_results 4000 \
+		--num_chains 16 \
+		--num_adaptation 16000 \
+		--num_burnin_steps 16000 \
+		--scale_scale 2.0
+
 test_mcmc:
 	mkdir -p gen/$@
 	python3 code/bayes.py \
@@ -173,6 +200,28 @@ paper:
 		--feature_type ALL \
 		--paperdir gen/$@ \
 		--mcmcpickle gen/mcmc3/samples.pkl
+
+papers20:
+	mkdir -p gen/$@
+	python3 code/results.py \
+		--pickle dane/clean.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--paperdir gen/$@ \
+		--mcmcpickle gen/mcmc3_s20/samples.pkl
+
+papers05:
+	mkdir -p gen/$@
+	python3 code/results.py \
+		--pickle dane/clean.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--paperdir gen/$@ \
+		--mcmcpickle gen/mcmc3_s05/samples.pkl
 
 paper_review_mc4:
 	mkdir -p gen/$@
