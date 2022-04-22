@@ -207,6 +207,27 @@ paper_review_inv:
 		--paperdir gen/$@ \
 		--mcmcpickle gen/mcmc_inv/samples.pkl
 
+pape_mcmc_inv_s20:
+	mkdir -p gen/$@
+	python3 code/results.py \
+		--pickle dane/clean_inv.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--paperdir gen/$@ \
+		--mcmcpickle gen/mcmc_inv_s20/samples.pkl
+
+pape_mcmc_inv_s05:
+	mkdir -p gen/$@
+	python3 code/results.py \
+		--pickle dane/clean_inv.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--paperdir gen/$@ \
+		--mcmcpickle gen/mcmc_inv_s05/samples.pkl
 
 # ANlizy czasowe
 
