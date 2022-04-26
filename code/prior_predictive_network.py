@@ -56,7 +56,7 @@ def main(_):
     util.plot_config()
 
     plt.hist2d(np.mean(np.log1p(counts), axis=1),np.std(np.log1p(counts), axis=1), bins=10, density=True,norm=mpl.colors.LogNorm())
-    plt.plot(np.mean(np.log1p(dataset.y)),np.std(np.log1p(dataset.y)),'kX',label='data')
+    plt.plot(np.mean(np.log1p(dataset.y)),np.std(np.log1p(dataset.y)),'X',color="c",label='data')
     plt.legend(loc='upper left')
     plt.xlabel(r'$\mathrm{mean}\quad\log(C_{ij}+1)$')
     plt.ylabel(r'$\mathrm{std}\quad\log(C_{ij}+1)$')
