@@ -65,10 +65,10 @@ def make_cpc_series(invention:pd.Series, additional:pd.Series):
 def make_date_series(ds:pd.Series):
     return  pd.to_datetime(ds,format='%Y%m%d')
 
-def make_clean_df(df:pd.DataFrame):
+def make_clean_df(df:pd.DataFrame, country_column='Applicant country of residence'):
     d=dict(
         application_date=make_date_series(df['Application date']),
-        countries=make_country_series(df['Applicant country of residence']),
+        countries=make_country_series(df[country_column]),
         cpc=make_cpc_series(df['CPC (invention information)'],df['CPC (additional information)']),
         publication=df['Publication'],
         publication_date = make_date_series(df['Publication date'])

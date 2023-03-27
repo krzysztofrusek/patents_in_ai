@@ -3,7 +3,8 @@ import seaborn as sns
 
 def plot_config():
     try:
-        mpl.use('MacOSX')
+        #mpl.use('MacOSX')
+        mpl.use('module://backend_interagg')
     except:
         mpl.use('Agg')
     sns.set_theme(

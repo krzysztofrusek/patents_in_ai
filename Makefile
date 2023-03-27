@@ -25,7 +25,7 @@ to_plg_code:
 to_plg: to_plg_data to_plg_code
 
 from_plg:
-	rsync -av --inplace --exclude '*.out' --exclude '*.err' '$(PLG_PATH)/checkpoint' plg/
+	rsync -av --inplace --exclude '*.out' --exclude '*.err' '$(PLG_PATH)/gen/' plg/
 
 
 3comp_others:
@@ -79,6 +79,102 @@ mcmc3:
 		--num_adaptation 16000 \
 		--num_burnin_steps 16000
 
+# Wyniki powtarzalne, ale beta-0 czasamai dodatnie
+mcmc4:
+	mkdir -p gen/$@
+	python3 code/bayes.py \
+		--pickle dane/clean_3part.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--num_results 4000 \
+		--num_chains 16 \
+		--num_adaptation 16000 \
+		--num_burnin_steps 16000
+
+mcmc5:
+	mkdir -p gen/$@
+	python3 code/bayes.py \
+		--pickle dane/clean_3part.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--num_results 4000 \
+		--num_chains 16 \
+		--num_adaptation 16000 \
+		--num_burnin_steps 16000 \
+		--loglambda_zero -12.0
+
+mcmc_inv:
+	mkdir -p gen/$@
+	python3 code/bayes.py \
+		--pickle dane/clean_inv.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--num_results 4000 \
+		--num_chains 16 \
+		--num_adaptation 16000 \
+		--num_burnin_steps 16000
+
+mcmc_inv_s05:
+	mkdir -p gen/$@
+	python3 code/bayes.py \
+		--pickle dane/clean_inv.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--num_results 4000 \
+		--num_chains 16 \
+		--num_adaptation 16000 \
+		--num_burnin_steps 16000 \
+		--scale_scale 0.5
+
+mcmc_inv_s20:
+	mkdir -p gen/$@
+	python3 code/bayes.py \
+		--pickle dane/clean_inv.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--num_results 4000 \
+		--num_chains 16 \
+		--num_adaptation 16000 \
+		--num_burnin_steps 16000 \
+		--scale_scale 2.0
+
+mcmc3_s05:
+	mkdir -p gen/$@
+	python3 code/bayes.py \
+		--pickle dane/clean.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--num_results 4000 \
+		--num_chains 16 \
+		--num_adaptation 16000 \
+		--num_burnin_steps 16000 \
+		--scale_scale 0.5
+mcmc3_s20:
+	mkdir -p gen/$@
+	python3 code/bayes.py \
+		--pickle dane/clean.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--num_results 4000 \
+		--num_chains 16 \
+		--num_adaptation 16000 \
+		--num_burnin_steps 16000 \
+		--scale_scale 2.0
+
 test_mcmc:
 	mkdir -p gen/$@
 	python3 code/bayes.py \
@@ -105,6 +201,82 @@ paper:
 		--paperdir gen/$@ \
 		--mcmcpickle gen/mcmc3/samples.pkl
 
+papers20:
+	mkdir -p gen/$@
+	python3 code/results.py \
+		--pickle dane/clean.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--paperdir gen/$@ \
+		--mcmcpickle gen/mcmc3_s20/samples.pkl
+
+papers05:
+	mkdir -p gen/$@
+	python3 code/results.py \
+		--pickle dane/clean.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--paperdir gen/$@ \
+		--mcmcpickle gen/mcmc3_s05/samples.pkl
+
+paper_review_mc4:
+	mkdir -p gen/$@
+	python3 code/results.py \
+		--pickle dane/clean_3part.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--paperdir gen/$@ \
+		--mcmcpickle gen/mcmc4/samples.pkl
+
+paper_review_mc5:
+	mkdir -p gen/$@
+	python3 code/results.py \
+		--pickle dane/clean_3part.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--paperdir gen/$@ \
+		--mcmcpickle gen/mcmc5/samples.pkl
+
+paper_review_inv:
+	mkdir -p gen/$@
+	python3 code/results.py \
+		--pickle dane/clean_inv.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--paperdir gen/$@ \
+		--mcmcpickle gen/mcmc_inv/samples.pkl
+
+pape_mcmc_inv_s20:
+	mkdir -p gen/$@
+	python3 code/results.py \
+		--pickle dane/clean_inv.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--paperdir gen/$@ \
+		--mcmcpickle gen/mcmc_inv_s20/samples.pkl
+
+pape_mcmc_inv_s05:
+	mkdir -p gen/$@
+	python3 code/results.py \
+		--pickle dane/clean_inv.pickle \
+		--out gen/$@ \
+		--others \
+		--nnz 2 \
+		--feature_type ALL \
+		--paperdir gen/$@ \
+		--mcmcpickle gen/mcmc_inv_s05/samples.pkl
 
 # ANlizy czasowe
 
@@ -270,10 +442,73 @@ gen/trends/paper :
 		--nkl 16384 \
 		--steps 1000 \
 		--seed 792848 \
+		--train_test_date="2020-09-01" \
+		--out $@
+
+gen/trends/review_old_data :
+	mkdir -p $@
+	PYTHONPATH=${PYTHONPATH} python3 code/logistic_growth.py \
+		--pickle dane/clean.pickle \
+		--nkl 16384 \
+		--steps 1000 \
+		--seed 792848 \
+		--out $@
+
+gen/trends/review :
+	mkdir -p $@
+	PYTHONPATH=${PYTHONPATH} python3 code/logistic_growth.py \
+		--pickle dane/clean.pickle \
+		--nkl 16384 \
+		--steps 1000 \
+		--seed 792848 \
+		--out $@
+
+# To jest ok do puibliakcji
+gen/trends/review2 :
+	mkdir -p $@
+	PYTHONPATH=${PYTHONPATH} python3 code/logistic_growth.py \
+		--pickle dane/clean_3part.pickle \
+		--nkl 16384 \
+		--steps 1000 \
+		--seed 792848 \
+		--train_test_date="2021-04-01" \
+		--out $@
+
+gen/trends/review3 :
+	mkdir -p $@
+	PYTHONPATH=${PYTHONPATH} python3 code/logistic_growth.py \
+		--pickle dane/clean_3part.pickle \
+		--nkl 16384 \
+		--steps 1000 \
+		--seed 792848 \
+		--train_test_date="2021-09-01" \
+		--out $@
+
+gen/trends/review4 :
+	mkdir -p $@
+	PYTHONPATH=${PYTHONPATH} python3 code/logistic_growth.py \
+		--pickle dane/clean_3part.pickle \
+		--nkl 16384 \
+		--steps 200 \
+		--seed 792848 \
+		--train_test_date="2021-09-01" \
+		--out $@
+
+gen/trends/review5 :
+	mkdir -p $@
+	PYTHONPATH=${PYTHONPATH} python3 code/logistic_growth.py \
+		--pickle dane/clean_3part.pickle \
+		--nkl 20000 \
+		--steps 3000 \
+		--seed 792848 \
+		--train_test_date="2021-09-01" \
 		--out $@
 
 seeded_trends: gen/trends/982995 gen/trends/127445 gen/trends/635725 gen/trends/792848 gen/trends/16917 gen/trends/773737 gen/trends/979000  gen/trends/318589
+seeded_trendsr: gen/trends/982991 gen/trends/127441 gen/trends/635721
+
 paper_trends: gen/trends/paper
+review_trends: gen/trends/review gen/trends/review2 gen/trends/review3 gen/trends/review_old_data gen/trends/review4 gen/trends/review5
 
 from_plg_trend:
 	rsync -av --inplace  '$(PLG_PATH)/gen/trends' plg/

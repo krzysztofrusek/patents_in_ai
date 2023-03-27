@@ -32,10 +32,11 @@ import data
 
 flags.DEFINE_string("pickle", "../dane/clean.pickle", "Input file")
 flags.DEFINE_integer("nkl", 8, "num samples for kl")
-flags.DEFINE_integer("steps", 1000, "num samples for kl")
+flags.DEFINE_integer("steps", 100, "num samples for kl")
 flags.DEFINE_integer("seed", 1000, "initial seed")
 flags.DEFINE_string("out", "out", "Output directory")
 flags.DEFINE_bool("coldstart", True, "train or restore files and plot results")
+flags.DEFINE_string("train_test_date", '2020-09-01', 'date for train test spit')
 
 FLAGS= flags.FLAGS
 
@@ -124,9 +125,12 @@ class LogisticGrowthSuperposition(hk.Module):
         super().__init__(name=name)
 
         self.maximum = NormalPosterior(
-            prior=(tfd.LogNormal(loc=_ta(26),scale=_ta(4.))),num_kl=num_kl,
+            #prior=(tfd.LogNormal(loc=_ta(26),scale=_ta(4.))),
+            prior=tfd.Pareto(_ta(1.3), _ta(11e3)),
+            num_kl=num_kl,
             initial=500.,
-            bijector=tfb.Chain([tfb.Scale(_ta(1e2)),tfb.Softplus()]),
+            #bijector=tfb.Chain([tfb.Scale(_ta(1e2)),tfb.Softplus()]),
+            bijector=tfb.Chain([tfb.Shift(_ta(11e3)),tfb.Softplus(),tfb.Scale(_ta(1e2))]),
             name = 'maximum'
         )
         self.midpoints= NormalPosterior(
@@ -165,7 +169,7 @@ def main(_):
     day_events = clean_df.publication_date.sort_values().to_numpy().astype('datetime64[D]')
     events=day_events.astype(np.float64)
 
-    train_test_date = np.datetime64('2020-09-01')
+    train_test_date = np.datetime64(FLAGS.train_test_date)
     last_idx = np.where(day_events<train_test_date)[0][-1]
 
     TIME_SCALE=1e4
@@ -240,7 +244,7 @@ def main(_):
     logging.info(dist)
     df = pd.DataFrame(np.concatenate(dist[1:], axis=1),columns=[r'$t_{0,1}$',r'$t_{0,2}$',r'$s_{1}$',r'$s_{2}$',r'$p_{1}$'])
     df['$C$']=dist.capacity
-    df[r'$p_{1}$'] = jax.nn.sigmoid(df[r'$p_{1}$'])
+    df[r'$p_{1}$'] = jax.nn.sigmoid(df[r'$p_{1}$'].to_numpy())
     df.iloc[:, :4] = (TIME_SCALE * df.iloc[:, :4])
     df.iloc[:, :2] = df.iloc[:, :2].astype('datetime64[D]')
     df.iloc[:, 2:4] = df.iloc[:, 2:4].astype('timedelta64[D]')
@@ -266,7 +270,7 @@ def main(_):
     logging.info(2*1e4*np.std(dist.midpoints, axis=0))
 
 
-    extra_time = np.linspace(events[-1],np.datetime64('2030-01-01').astype(np.float64),100)
+    extra_time = np.linspace(events[-1],np.datetime64('2035-01-01').astype(np.float64),100)
     plot_events = np.concatenate((events,extra_time))
     plotx = plot_events.astype('datetime64[D]')
 
@@ -290,6 +294,7 @@ def main(_):
     plt.fill_between(plotx,cl,ch,alpha=0.5, label=r'95 % interval')
 
     plt.axvline(train_test_date, linestyle=':', color='k',label='train end')
+    plt.ylabel('Patents')
 
     plt.legend()
     plt.yscale('log')
@@ -317,6 +322,7 @@ def main(_):
     plt.axvline(alexnet_date, linestyle=':', color='grey',label='alexnet')
     plt.axvline(train_test_date, linestyle=':', color='k', label='train end')
     plt.axvline(day_events[-1],linestyle='-.', color='grey', label='data end')
+    plt.ylabel('Rate [patents per day]')
     plt.legend()
 
     plt.savefig(os.path.join(FLAGS.out,'rate.pdf'))
